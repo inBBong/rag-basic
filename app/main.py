@@ -10,12 +10,13 @@ FastAPI 애플리케이션입니다.
 
 from fastapi import FastAPI
 
-from app.api import customers, products
+from app.api import ask, customers, products
 
 app = FastAPI(title="화장품 AI 관리자")
 
 app.include_router(products.router)
 app.include_router(customers.router)
+app.include_router(ask.router)
 
 
 @app.get("/")
