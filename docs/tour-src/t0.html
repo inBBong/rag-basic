@@ -1,0 +1,438 @@
+      <section class="slide" data-stage="0" data-title="폴더 지도">
+        <div class="eyebrow">코드 투어</div>
+        <h1>완성본을 폴더 순서대로 훑습니다</h1>
+
+        <p class="lead">
+          DAY 1·2·3 교안은 <strong>만드는 순서</strong>였습니다.
+          이 교안은 <strong>다 만든 뒤의 모습</strong>을 폴더 하나씩, 파일 하나씩 봅니다.
+          앞뒤로 왔다 갔다 하지 않습니다.
+        </p>
+
+        <div class="flow">rag-basic/
+│
+├─ data/          CSV 5개. 손으로 안 고칩니다.
+├─ pipeline/      처음에 딱 한 번 돌리는 준비 스크립트 5개
+│
+├─ app/
+│  ├─ config.py   .env 읽기        ┐
+│  ├─ db.py       DB 연결          ├ 뿌리 3개
+│  ├─ main.py     앱 조립          ┘
+│  │
+│  ├─ models/        테이블 생김새       (SQLAlchemy)
+│  ├─ schemas/       주고받는 JSON 형식  (Pydantic)
+│  ├─ repositories/  DB 조회 — 함수만
+│  ├─ services/      업무 로직
+│  ├─ api/           HTTP 엔드포인트
+│  │
+│  ├─ ai/         바깥 AI API 를 부르는 코드
+│  ├─ rag/        검색과 리랭킹
+│  ├─ tools/      AI 가 고를 수 있는 도구
+│  └─ graph/      LangGraph 흐름
+│
+├─ tests/         pytest
+├─ eval/          답변 품질 채점
+└─ web/           화면 4개 (라이브러리 없음)</div>
+
+        <h2>요청 하나가 지나가는 길</h2>
+        <div class="flow">일반 조회      브라우저 → api → services → repositories → models → DB
+
+AI 질문        브라우저 → api → services → graph → nodes ─┬ tools → services → repositories
+                                                          └ rag → ai(embedder·vector_store·llm)</div>
+
+        <div class="note">
+          <div class="note-t">폴더 이름이 곧 계층입니다</div>
+          <p class="dim">
+            <code class="inl">api</code> 는 HTTP 를 알고,
+            <code class="inl">repositories</code> 는 DB 를 알고,
+            <code class="inl">ai</code> 는 바깥 API 를 압니다.
+            <strong>서로의 일을 넘겨받지 않습니다.</strong>
+            어디를 고쳐야 할지 헷갈리면 "이건 누구의 일인가" 를 물어보면 됩니다.
+          </p>
+        </div>
+
+        <div class="note warn">
+          <div class="note-t">일부러 안 만든 것들</div>
+          <p class="dim">
+            <code class="inl">utils/</code> <code class="inl">common/</code>
+            <code class="inl">core/</code> <code class="inl">policies/</code> 폴더가 없습니다.
+            이런 이름은 <strong>무엇이 들어있는지 이름이 말해주지 않아서</strong>
+            결국 아무거나 쌓이는 자리가 됩니다.
+            <code class="inl">chunk_repository.py</code> 도 없습니다 —
+            chunks 테이블은 <code class="inl">ai/vector_store.py</code> 혼자 만집니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="0" data-title="읽는 순서">
+        <div class="eyebrow">코드 투어</div>
+        <h1>이 순서로 보면 됩니다</h1>
+
+        <div class="lines">
+          <div class="ln">
+            <code>1 · data</code>
+            <span>어떤 데이터가 있는지. <strong>여기서 모든 게 시작합니다.</strong></span>
+          </div>
+          <div class="ln">
+            <code>2 · pipeline</code>
+            <span>그 데이터를 DB 와 벡터로 바꾸는 준비 작업</span>
+          </div>
+          <div class="ln">
+            <code>3 · app 뿌리 3개</code>
+            <span>설정 · DB 연결 · 앱 조립. <strong>거의 모든 파일이 이 셋을 가져다 씁니다.</strong></span>
+          </div>
+          <div class="ln">
+            <code>4~5 · 값의 모양</code>
+            <span>models(DB 쪽) → schemas(바깥 쪽). 계층이 아니라 <strong>값의 모양</strong>입니다.</span>
+          </div>
+          <div class="ln">
+            <code>6~8 · 계층 3개</code>
+            <span>repositories → services → api. <strong>아래에서 위로</strong></span>
+          </div>
+          <div class="ln">
+            <code>9~12 · AI 쪽</code>
+            <span>ai → rag → tools → graph. 역시 <strong>아래에서 위로</strong></span>
+          </div>
+          <div class="ln">
+            <code>13~14 · 검증</code>
+            <span>tests · eval</span>
+          </div>
+          <div class="ln">
+            <code>15 · web</code>
+            <span>화면. 서버를 다 알고 나서 봅니다.</span>
+          </div>
+        </div>
+
+        <h2>각 파일마다 이렇게 봅니다</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>① 무슨 파일인가</h3>
+            <p>이 파일이 맡은 일 한 줄</p>
+          </div>
+          <div class="card">
+            <h3>② 안에 무엇이 있나</h3>
+            <p>함수·상수 목록과 각각의 역할</p>
+          </div>
+          <div class="card">
+            <h3>③ 전체 코드</h3>
+            <p>통째로 복사할 수 있게</p>
+          </div>
+          <div class="card">
+            <h3>④ 나눠서 설명</h3>
+            <p>import · 정의 · 호출</p>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">빈 파일이 11개 있습니다</div>
+          <p class="dim">
+            폴더마다 <code class="inl">__init__.py</code> 가 하나씩 있습니다.
+            <strong>내용은 주석 한 줄뿐</strong>이고, "이 폴더는 파이썬 패키지다" 라는 표시입니다.
+            그래야 <code class="inl">from app.services import ...</code> 가 됩니다.
+            <code class="inl">app/models/__init__.py</code> 만 예외인데, 그건 따로 설명합니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="1" data-title="폴더 개요">
+        <div class="eyebrow">1 · data</div>
+        <h1>CSV 5개. 코드가 아닙니다</h1>
+
+        <p class="lead">
+          이 폴더만 <strong>손으로 만들지 않은 것</strong>입니다.
+          나머지 전부가 여기서 나옵니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln">
+            <code>customers.csv</code>
+            <span>고객 300명 — 이름·나이·피부타입·전화·이메일 <span class="pill tool">정형</span></span>
+          </div>
+          <div class="ln">
+            <code>products.csv</code>
+            <span>상품 200개 — 가격·카테고리·성분 <span class="pill tool">정형</span></span>
+          </div>
+          <div class="ln">
+            <code>product_details.csv</code>
+            <span>
+              상품 상세 문서 200개 — <code>##</code> 로 나뉜 긴 글, 평균 1,370자
+              <span class="pill rag">비정형</span>
+            </span>
+          </div>
+          <div class="ln">
+            <code>purchases.csv</code>
+            <span>구매 이력 1,500건 <span class="pill tool">정형</span></span>
+          </div>
+          <div class="ln">
+            <code>reviews.csv</code>
+            <span>
+              후기 1,500건 <span class="pill rag">비정형</span>
+              <strong>— pipeline 이 만들어 낸 파일입니다</strong>
+            </span>
+          </div>
+        </div>
+
+        <h2>정형과 비정형이 갈리는 지점</h2>
+        <div class="flow">customers / products / purchases     숫자와 코드
+   → SQLAlchemy → Repository → Function Calling
+
+product_details / reviews            사람이 쓴 문장
+   → 청킹 → 임베딩 → 벡터 검색 → RAG</div>
+
+        <p>
+          <strong>이 구분이 프로젝트 전체를 가릅니다.</strong>
+          "구매액이 가장 높은 고객" 은 위쪽 길로, "환불 되나요" 는 아래쪽 길로 갑니다.
+        </p>
+
+        <div class="note">
+          <div class="note-t">reviews.csv 는 원래 없었습니다</div>
+          <p class="dim">
+            처음 <code class="inl">purchases.csv</code> 에는
+            <code class="inl">rating</code> 과 <code class="inl">review</code> 칸이 붙어 있었습니다.
+            <strong>정형과 비정형이 한 파일에 섞여 있으면</strong> 다루는 방법이 갈리지 않습니다.
+            그래서 <code class="inl">pipeline/split_reviews.py</code> 가 떼어냅니다.
+          </p>
+        </div>
+
+        <div class="note warn">
+          <div class="note-t">파생 컬럼이 없습니다</div>
+          <p class="dim">
+            <code class="inl">total_spend</code>(구매 합계액) 같은 칸을 만들지 않았습니다.
+            <strong>실제 회사 DB 에 그런 컬럼이 없기 때문</strong>입니다.
+            필요하면 <code class="inl">JOIN + GROUP BY + func.sum</code> 으로 그때 계산합니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="2" data-title="폴더 개요">
+        <div class="eyebrow">2 · pipeline</div>
+        <h1>처음에 딱 한 번 돌리는 준비 작업</h1>
+
+        <p class="lead">
+          서버가 도는 동안에는 <strong>쓰이지 않습니다.</strong>
+          CSV 를 DB 와 벡터로 바꿔놓는 것이 전부입니다.
+        </p>
+
+        <div class="flow">python -m pipeline.run_all
+
+  1. split_reviews   purchases.csv 에서 후기를 떼어내 reviews.csv 를 만든다
+  2. load_data       CSV 5개를 SQLite 4개 테이블로 넣는다
+  3. chunk           상품 상세와 후기를 잘라 chunks 테이블에 넣는다   3,060개
+  4. embed           청크를 벡터로 바꿔 embedding 칸에 채운다        약 17초</div>
+
+        <div class="lines">
+          <div class="ln"><code>split_reviews.py</code><span>CSV 하나를 둘로 나눕니다. <strong>DB 를 안 씁니다.</strong></span></div>
+          <div class="ln"><code>load_data.py</code><span>CSV → SQLite. 테이블을 지우고 다시 만듭니다.</span></div>
+          <div class="ln"><code>chunk.py</code><span>긴 글 → 조각. 규칙은 <code>app/ai/chunker.py</code> 것을 씁니다.</span></div>
+          <div class="ln"><code>embed.py</code><span>조각 → 벡터. <strong>벡터 없는 것만</strong> 처리합니다.</span></div>
+          <div class="ln"><code>run_all.py</code><span>위 넷을 순서대로 부릅니다.</span></div>
+        </div>
+
+        <h2>이 폴더만 다르게 취급합니다</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>계층을 안 지킵니다</h3>
+            <p>Repository 를 거치지 않고 테이블에 바로 넣습니다.</p>
+          </div>
+          <div class="card">
+            <h3>여러 번 돌려도 됩니다</h3>
+            <p>네 개 다 "이미 되어 있으면 건너뛴다" 또는 "지우고 다시" 입니다.</p>
+          </div>
+          <div class="card">
+            <h3>화면에 많이 찍습니다</h3>
+            <p>결과를 눈으로 확인하는 것이 목적이라 <code>print</code> 가 많습니다.</p>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">파일 이름에 숫자를 안 붙였습니다</div>
+          <p class="dim">
+            <code class="inl">01_load_data.py</code> 처럼 쓰면 순서는 보이지만
+            <strong>숫자로 시작하는 이름은 import 가 안 됩니다.</strong>
+            그러면 <code class="inl">run_all.py</code> 가 부를 수 없습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="2" data-title="split_reviews.py">
+        <div class="eyebrow">2 · pipeline</div>
+        <h1>split_reviews.py — CSV 하나를 둘로 나눕니다</h1>
+
+        <p>
+          <code class="inl">purchases.csv</code> 를 읽어서 <strong>구매 정보</strong>와
+          <strong>후기</strong>로 갈라 두 파일로 다시 씁니다.
+          DB 도 AI 도 나오지 않는, 순수한 파일 작업입니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:pipeline/split_reviews.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>DATA · PURCHASES · REVIEWS</code><span>파일 경로 상수</span></div>
+          <div class="ln"><code>PURCHASE_COLUMNS · REVIEW_COLUMNS</code><span>새 파일에 쓸 칸과 순서</span></div>
+          <div class="ln"><code>read_csv(path)</code><span>CSV → 딕셔너리 목록</span></div>
+          <div class="ln"><code>write_csv(path, rows, columns)</code><span>딕셔너리 목록 → CSV</span></div>
+          <div class="ln"><code>make_purchase(row)</code><span>한 줄에서 <strong>구매 칸만</strong> 골라 새 줄</span></div>
+          <div class="ln"><code>make_review(row, number)</code><span>같은 줄에서 <strong>후기 칸만</strong> 골라 새 줄</span></div>
+          <div class="ln"><code>main()</code><span>읽고 → 나누고 → 쓴다</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>pipeline/split_reviews.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:pipeline/split_reviews.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>import csv</code>
+            <span>파이썬에 <strong>기본으로 들어있는</strong> CSV 도구. 설치할 것이 없습니다.</span>
+          </div>
+          <div class="ln">
+            <code>from pathlib import Path</code>
+            <span>경로를 다루는 도구. 글자를 이어 붙이는 것보다 안전합니다.</span>
+          </div>
+          <div class="ln">
+            <code>우리 코드를 안 가져옵니다</code>
+            <span>
+              <code>app/</code> 을 하나도 부르지 않습니다.
+              <strong>DB 가 아직 없어도 돌아갑니다.</strong> 가장 먼저 실행되는 파일이라 그렇습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>상수 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>Path(__file__).parent.parent</code>
+            <span>
+              <code>__file__</code> 은 <strong>지금 이 파일의 위치</strong>입니다.
+              <code>.parent</code> 두 번이면 프로젝트 최상위 폴더입니다.
+              <strong>어느 폴더에서 실행하든</strong> data/ 를 정확히 찾습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>DATA / "purchases.csv"</code>
+            <span><code>Path</code> 는 나눗셈 기호로 경로를 이어 붙입니다.</span>
+          </div>
+          <div class="ln">
+            <code>PURCHASE_COLUMNS 와 REVIEW_COLUMNS</code>
+            <span>
+              <strong>이 두 줄이 곧 "무엇을 어디로 보낼지" 에 대한 답입니다.</strong>
+              앞에는 <code>rating</code>·<code>content</code> 가 없고,
+              뒤에는 <code>quantity</code> 가 없습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>함수 정의 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>with open(...) as f</code>
+            <span>파일을 열고 <strong>블록이 끝나면 자동으로 닫습니다.</strong></span>
+          </div>
+          <div class="ln">
+            <code>encoding="utf-8"</code>
+            <span>한글이 깨지지 않게 합니다.</span>
+          </div>
+          <div class="ln">
+            <code>newline=""</code>
+            <span>
+              <strong>csv 모듈을 쓸 때의 규칙</strong>입니다.
+              빼면 윈도우에서 빈 줄이 하나씩 끼어듭니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>csv.DictReader(f)</code>
+            <span>
+              <strong>첫 줄을 컬럼 이름으로 삼아</strong> 나머지를 딕셔너리로 바꿔줍니다.
+              <code>row["rating"]</code> 처럼 이름으로 꺼낼 수 있게 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>list(...)</code>
+            <span>
+              <code>with</code> 를 벗어나면 파일이 닫혀서 못 읽습니다.
+              닫히기 전에 전부 꺼내 담습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>fieldnames=columns</code>
+            <span>
+              <strong>쓸 칸과 순서를 여기서 정합니다.</strong>
+              목록에 없는 키는 그냥 빠집니다 — 구매 줄에서 후기가 사라지는 원리입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>lineterminator="\n"</code>
+            <span>
+              줄 끝 문자. 안 적으면 윈도우와 맥에서 <strong>같은 입력에 다른 파일</strong>이 나옵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>f"R{number:04d}"</code>
+            <span>
+              숫자를 <strong>네 자리로 채웁니다.</strong>
+              <code>1 → "R0001"</code>. 후기에는 원래 번호가 없어서 여기서 만듭니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"content": row["review"]</code>
+            <span>
+              <strong>이름을 바꿔 담는 유일한 칸.</strong>
+              파일 이름이 이미 reviews 라서 <code>review.review</code> 는 어색합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"written_at": row["purchased_at"]</code>
+            <span>
+              후기 작성일을 구매일과 같게 둡니다. 원본에 작성일이 없기 때문입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>호출 부분 — main</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>if "review" not in rows[0]</code>
+            <span>
+              첫 줄에 <code>review</code> 칸이 없으면 <strong>이미 나눠놓은 것</strong>입니다.
+              딕셔너리에 <code>in</code> 을 쓰면 "키가 있는지" 를 봅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>return</code>
+            <span>
+              <strong>함수를 여기서 끝냅니다.</strong> 덕분에 두 번 돌려도 안전합니다 —
+              이미 나뉜 파일을 또 나누면 후기가 사라집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>[make_purchase(row) for row in rows]</code>
+            <span>
+              목록을 만드는 짧은 문법. "rows 의 줄마다 이 함수를 돌려 나온 값들로 목록을 만들어라".
+            </span>
+          </div>
+          <div class="ln">
+            <code>enumerate(rows, start=1)</code>
+            <span>
+              <strong>번호와 값을 함께</strong> 꺼냅니다. <code>start=1</code> 이라 1번부터.
+              이 번호가 <code>R0001</code> 의 재료입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>write_csv(PURCHASES, ...)</code>
+            <span>
+              <strong>원본에 덮어씁니다.</strong> 후기 칸이 빠진 채로요.
+              바로 다음 줄에서 같은 함수로 reviews.csv 를 새로 만듭니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>if __name__ == "__main__"</code>
+            <span>
+              <strong>직접 실행했을 때만</strong> <code>main()</code> 을 부릅니다.
+              <code>run_all.py</code> 가 import 하면 함수만 가져가고 실행은 안 됩니다.
+            </span>
+          </div>
+        </div>
+      </section>

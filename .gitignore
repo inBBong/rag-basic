@@ -1,0 +1,18 @@
+# 환경 변수 (API 키가 들어있으므로 절대 커밋하지 않음)
+.env
+
+# SQLite 데이터베이스 (pipeline 실행으로 다시 만들 수 있음)
+*.db
+
+# 파이썬
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 가상환경
+venv/
+.venv/
+
+# 에디터
+.vscode/
+.idea/

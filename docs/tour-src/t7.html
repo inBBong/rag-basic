@@ -1,0 +1,620 @@
+      <section class="slide" data-stage="15" data-title="폴더 개요">
+        <div class="eyebrow">15 · web</div>
+        <h1>화면 넷. 라이브러리를 쓰지 않습니다</h1>
+
+        <p class="lead">
+          React 도 Vue 도 jQuery 도 없습니다.
+          <strong>브라우저에 들어있는 <code class="inl">fetch</code> 만</strong> 씁니다.
+          빌드도 없어서 파일을 고치고 새로고침하면 끝입니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln">
+            <code>index.html · app.js</code>
+            <span>질문하기 — <strong>실행 경로가 켜지고 답변이 한 자씩</strong></span>
+          </div>
+          <div class="ln">
+            <code>customers.html · customers.js</code>
+            <span>고객 관리 — <strong>마스킹 전후를 나란히</strong> + 상품 추천</span>
+          </div>
+          <div class="ln">
+            <code>products.html · products.js</code>
+            <span>상품 관리 — <strong>청킹 결과</strong> + 고객 추천</span>
+          </div>
+          <div class="ln">
+            <code>product-new.html · product-new.js</code>
+            <span>상품 등록 — <strong>증분 임베딩 숫자</strong></span>
+          </div>
+          <div class="ln">
+            <code>style.css</code>
+            <span>네 화면이 <strong>같이 씁니다</strong> · {{LINES:web/style.css}}줄</span>
+          </div>
+        </div>
+
+        <h2>탭이 아니라 파일로 나눕니다</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>탭으로 넣으면</h3>
+            <p>
+              화면 전환 상태, show/hide 로직, 어떤 탭이 열렸는지 기억하는 변수가 생깁니다.
+              <strong>라우터를 안 써도 상태 관리가 시작됩니다.</strong>
+            </p>
+          </div>
+          <div class="card">
+            <h3>파일로 나누면</h3>
+            <p>
+              <strong>파일 하나 = 화면 하나 = 흐름 하나.</strong>
+              그런 것이 하나도 필요 없습니다.
+            </p>
+          </div>
+        </div>
+
+        <h2>네 JS 가 공유하는 모양</h2>
+        <div class="flow">1. 맨 위에서 화면 요소를 id 로 찾아 상수에 담는다
+2. 서버를 부르는 async 함수
+3. 받은 것을 그리는 함수들
+4. 맨 아래에서 버튼에 이어 붙인다   addEventListener</div>
+
+        <div class="note">
+          <div class="note-t">style.css 만 같이 씁니다</div>
+          <p class="dim">
+            스타일까지 나누면 같은 규칙이 네 번 반복됩니다.
+            화면마다 필요한 클래스를 <strong>한 파일에 이어서</strong> 더해 갑니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="15" data-title="index.html · app.js">
+        <div class="eyebrow">15 · web</div>
+        <h1>질문하기 — 흘러오는 것을 그립니다</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>web/index.html</b> · 전체 · {{LINES:web/index.html}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:web/index.html}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>내용을 안 채웁니다</code>
+            <span>
+              <strong>빈 칸만 만들고 <code>id</code> 를 붙입니다.</strong>
+              JS 가 그 <code>id</code> 로 찾아 채웁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>id="path" id="answer" id="sources"</code>
+            <span>
+              응답의 <code>path</code> / <code>answer</code> / <code>sources</code> 와 <strong>짝이 맞습니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>class="hidden"</code>
+            <span>
+              처음에는 감춰 둡니다. CSS 에 <code>.hidden { display: none }</code> 한 줄이 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>tool-example / rag-example</code>
+            <span>
+              버튼 색을 다르게 칠하려는 표시입니다.
+              누르기 전에 <strong>"이건 DB 로 갈 질문"</strong> 이라는 걸 알 수 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>&lt;script&gt; 를 맨 아래에</code>
+            <span>
+              <code>&lt;/body&gt;</code> 바로 앞입니다.
+              그래야 JS 가 실행될 때 위의 요소들이 이미 만들어져 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>web/app.js</b> · 전체 · {{LINES:web/app.js}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:web/app.js}}</pre>
+        </div>
+
+        <h2>맨 위 — 요소와 대화 기록</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>document.getElementById(...)</code>
+            <span>
+              <strong>한 번만 찾아 상수에 담아둡니다.</strong>
+              함수마다 다시 찾으면 느리고 코드도 길어집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>let history = []</code>
+            <span>
+              <strong>앞 대화를 화면이 들고 있습니다.</strong> 서버는 아무것도 기억하지 않습니다.
+              <code>const</code> 가 아니라 <code>let</code> 인 이유는 <code>slice</code> 로 갈아끼우기 때문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>KEEP_TURNS = 3</code>
+            <span>최근 세 번만. 다 보내면 <strong>프롬프트가 길어지고 비용도 늘어납니다.</strong></span>
+          </div>
+        </div>
+
+        <h2>askServer — 조각을 이어 붙여 읽습니다</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>response.body.getReader()</code>
+            <span>
+              응답을 <strong>흘러오는 대로 읽는 도구</strong>를 얻습니다.
+              <code>response.json()</code> 은 다 올 때까지 기다려서 여기선 못 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>{ stream: true }</code>
+            <span>
+              <strong>한글에 꼭 필요합니다.</strong> 한글 한 글자가 3바이트라
+              덩어리 경계에서 잘릴 수 있는데, 이 옵션이 잘린 바이트를 들고 있다가 합쳐줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>buffer = parts.pop()</code>
+            <span>
+              <strong>맨 마지막 조각은 다시 buffer 로 돌려놓습니다.</strong>
+              끝이 잘렸을 수 있어서, 다음에 온 것과 합쳐 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>part.slice(6)</code>
+            <span>앞의 <code>"data: "</code> 6글자를 떼어냅니다.</span>
+          </div>
+          <div class="ln">
+            <code>onEvent(...)</code>
+            <span>
+              받은 것을 <strong>넘겨주기만</strong> 합니다.
+              읽는 일과 그리는 일을 나눠두면 각각이 짧아집니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>그리는 함수들</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>className = "node " + route</code>
+            <span>
+              <code>"node tool"</code> 또는 <code>"node rag"</code> 가 됩니다.
+              <strong>CSS 가 이 이름을 보고 색을 칠합니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>answerBox.textContent += text</code>
+            <span>
+              <code>=</code> 가 아니라 <code>+=</code> 입니다.
+              조각이 올 때마다 <strong>이어 붙여야</strong> 한 자씩 찍히는 것처럼 보입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>textContent 를 씁니다</code>
+            <span>
+              <code>innerHTML</code> 이 아닙니다. <strong>글자로만</strong> 넣어서
+              내용에 <code>&lt;</code> 가 있어도 태그로 해석되지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>history.slice(-KEEP_TURNS)</code>
+            <span>
+              <strong>뒤에서 3개만</strong> 남깁니다. 음수는 뒤에서부터 센다는 뜻입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>if (result.route === "tool")</code>
+            <span>
+              <strong>온 길에 따라 다르게 그립니다.</strong>
+              DB 로 왔으면 조회 결과를, 검색으로 왔으면 글 조각을 보여줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>JSON.stringify(row, null, 0)</code>
+            <span>
+              DB 조회 결과를 <strong>그대로</strong> 보여줍니다.
+              전화번호가 가려진 채 나오는 것을 눈으로 확인할 수 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>ask — 본체</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>결과 칸을 먼저 비우고 엽니다</code>
+            <span>
+              <strong>답이 오기 전에</strong> 열어야 경로가 하나씩 켜지는 게 보입니다.
+              다 받은 뒤에 열면 스트리밍이 의미가 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>askButton.disabled = true</code>
+            <span>답하는 중에 또 누르지 못하게 막습니다.</span>
+          </div>
+          <div class="ln">
+            <code>function (event) {...}</code>
+            <span>
+              <strong>이 자리에서 만든 함수를 그대로 넘깁니다.</strong>
+              <code>event.type</code> 을 보고 셋 중 하나로 갈라집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>try / catch</code>
+            <span>
+              서버가 죽었거나 네트워크가 끊기면 여기로 옵니다.
+              <strong>화면이 멈추지 않고</strong> 오류 문구를 보여줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>맨 아래 addEventListener 셋</code>
+            <span>
+              버튼 클릭 · 엔터 키 · 예시 버튼.
+              <strong>이어 붙이는 일은 파일 맨 끝에</strong> 모아둡니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="15" data-title="customers.js">
+        <div class="eyebrow">15 · web</div>
+        <h1>고객 관리 — 마스킹 전후를 나란히</h1>
+
+        <p>
+          <strong>이 화면이 이 프로젝트의 핵심 대비를 보여줍니다.</strong>
+          같은 고객을 두 벌로 그려서 "우리는 보지만 AI 는 못 본다" 를 눈으로 확인합니다.
+        </p>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>web/customers.js</b> · 전체 · {{LINES:web/customers.js}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:web/customers.js}}</pre>
+        </div>
+
+        <h2>구조</h2>
+        <div class="lines">
+          <div class="ln"><code>loadCustomers()</code><span>목록을 받아 그립니다</span></div>
+          <div class="ln"><code>openCustomer(id)</code><span>상세를 받아 네 칸을 채웁니다</span></div>
+          <div class="ln"><code>recommend(id)</code><span>추천을 받아 그립니다</span></div>
+        </div>
+
+        <h2>줄별로 보면</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>fetch("/customers?limit=...")</code>
+            <span>
+              <strong>주소 뒤에 값을 붙여</strong> 보냅니다.
+              <code>api/customers.py</code> 의 <code>limit: int = 20</code> 과 짝입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>await response.json()</code>
+            <span>
+              여기는 <strong>스트리밍이 아니라서</strong> 한 번에 받습니다.
+              <code>app.js</code> 의 <code>getReader()</code> 와 대비됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>customer 와 masked 를 각각 그립니다</code>
+            <span>
+              <strong>같은 함수에 다른 값을 넘깁니다.</strong>
+              모양이 같아서 그리는 코드도 하나면 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>toLocaleString()</code>
+            <span><code>596000</code> 을 <code>596,000</code> 으로 만듭니다.</span>
+          </div>
+          <div class="ln">
+            <code>"★".repeat(rating)</code>
+            <span>
+              숫자를 별로 그립니다. 글자에 <code>repeat</code> 을 쓰면 그만큼 반복됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>추천은 POST 입니다</code>
+            <span>
+              조회가 아니라 <strong>AI 를 부르고 돈이 드는 요청</strong>이라
+              브라우저가 함부로 미리 불러오면 안 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>profile 을 화면에 보여줍니다</code>
+            <span>
+              <strong>AI 에게 실제로 보낸 문장</strong>입니다.
+              추천이 이상할 때 프로필이 문제인지 검색이 문제인지 구분됩니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="15" data-title="products.js · product-new.js">
+        <div class="eyebrow">15 · web</div>
+        <h1>상품 관리와 등록</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>web/products.js</b> · 전체 · {{LINES:web/products.js}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:web/products.js}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>청크 목록을 그립니다</code>
+            <span>
+              <code>section</code> · <code>length</code> · <code>embedded</code> 를 한 줄씩.
+              <strong>"이 문서가 어떻게 잘렸는지" 를 눈으로</strong> 봅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>source 로 구분합니다</code>
+            <span>
+              <code>find_chunks_by_product</code> 는 <strong>후기 조각도 함께</strong> 돌려줍니다.
+              그래서 화면에서 갈라 보여줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>embedded ? "●" : "○"</code>
+            <span>
+              벡터가 있으면 채운 동그라미. <strong>등록 직후 확인하는 자리</strong>입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>candidates 를 그대로 보여줍니다</code>
+            <span>
+              상품→고객 추천에서 <strong>AI 에게 보여준 후보 목록</strong>입니다.
+              가려진 채로 나와서 무엇을 보고 골랐는지 확인됩니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>web/product-new.js</b> · 전체 · {{LINES:web/product-new.js}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:web/product-new.js}}</pre>
+        </div>
+
+        <h2>줄별로 보면</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>EXAMPLE_DETAIL</code>
+            <span>
+              <code>##</code> 로 나뉜 <strong>예시 문서를 미리 넣어둡니다.</strong>
+              형식을 몰라도 바로 저장 버튼을 눌러볼 수 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>names 목록</code>
+            <span>
+              <strong>HTML 의 <code>id</code> 와 스키마의 항목 이름을 같게</strong> 맞춰뒀습니다.
+              칸이 12개인데 코드는 세 줄입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>form[field] = ...</code>
+            <span>
+              객체에 <strong>변수 이름으로 칸을 만듭니다.</strong>
+              <code>form.product_id</code> 라고 못 쓰는 자리에 이렇게 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>form.price = Number(...)</code>
+            <span>
+              <strong>가격만 따로 처리합니다.</strong> 입력칸 값은 항상 글자인데
+              스키마에는 <code>price: int</code> 라고 적어뒀습니다.
+              글자로 보내면 422 가 납니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>saveButton.textContent 를 바꿉니다</code>
+            <span>
+              <strong>지금 무슨 일이 일어나는지</strong> 버튼이 알려줍니다.
+              별도 로딩 표시를 안 만들어도 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>await response.json()</code>
+            <span>
+              <strong>성공이든 실패든 먼저 읽습니다.</strong>
+              409 일 때도 본문에 <code>detail</code> 이 들어 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>body.detail || "저장하지 못했습니다."</code>
+            <span>
+              <code>||</code> 는 앞이 비어 있을 때 뒤를 씁니다. 파이썬의 <code>or</code> 와 같습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>showResult 의 마무리 문장</code>
+            <span>
+              <strong>"전체 3,066개를 다시 하지 않고 6개만 처리했습니다."</strong>
+              두 숫자를 나란히 놓는 것이 증분 임베딩을 보여주는 방법입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">세 화면이 이어집니다</div>
+          <div class="flow">등록  →  청크 확인  →  바로 검색
+ ↓         ↓            ↓
+product-new.html   products.html   index.html
+POST /products     GET /products/P900   POST /ask/stream</div>
+          <p class="dim">
+            등록 직후 검색이 되는 것은 <code class="inl">clear_memory()</code> 덕분입니다.
+            그게 없으면 서버를 껐다 켜야 보입니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="15" data-title="나머지 화면과 style.css">
+        <div class="eyebrow">15 · web</div>
+        <h1>화면 셋과 공용 스타일</h1>
+
+        <p>
+          세 HTML 은 <code class="inl">index.html</code> 과 <strong>같은 모양</strong>입니다 —
+          빈 칸에 <code class="inl">id</code> 를 붙여두고 JS 가 채웁니다.
+          다른 점은 <strong>맨 위 메뉴</strong>와 채울 칸의 종류뿐입니다.
+        </p>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>web/customers.html</b> · 전체 · {{LINES:web/customers.html}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:web/customers.html}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>&lt;nav&gt; 로 네 화면을 잇습니다</code>
+            <span>
+              라우터가 없어서 <strong>그냥 링크</strong>입니다.
+              현재 화면에는 <code>class="here"</code> 를 붙여 표시합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>id="original" · id="masked"</code>
+            <span>
+              <strong>같은 고객을 두 칸에</strong> 그립니다.
+              이 두 칸이 나란히 있는 것이 이 화면의 목적입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>id="recommend-box"</code>
+            <span>추천 버튼을 누르면 채워지는 칸. 처음엔 <code>hidden</code> 입니다.</span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>web/products.html</b> · 전체 · {{LINES:web/products.html}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:web/products.html}}</pre>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>web/product-new.html</b> · 전체 · {{LINES:web/product-new.html}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:web/product-new.html}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>&lt;form&gt; 이 아니라 &lt;div&gt;</code>
+            <span>
+              폼 태그를 안 써서 <strong>기본 제출 동작이 없습니다.</strong>
+              그래서 <code>preventDefault()</code> 도 필요 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>id 가 스키마 항목 이름과 같습니다</code>
+            <span>
+              <code>id="product_id"</code>, <code>id="price"</code>...
+              <strong>그래서 <code>collectForm</code> 이 이름 목록 하나로 다 모읍니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>&lt;textarea id="detail"&gt;</code>
+            <span>
+              긴 글을 넣는 칸. JS 가 예시 문서를 미리 채워둡니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>style.css — 네 화면이 같이 씁니다</h2>
+        <div class="flow">공통      body · nav · header · .hidden · 버튼 · 입력칸
+질문하기   .example · .node · .arrow · .source
+고객       .customer-grid · .masked-box · .review
+상품       .chunk · .chunk-list
+등록       .form-grid · .result-numbers</div>
+
+        <p class="dim">
+          <strong>화면마다 필요한 클래스를 한 파일에 이어서 더해 갑니다.</strong>
+          나누면 공통 부분이 네 번 반복됩니다.
+          클래스 이름 앞에 무슨 화면 것인지 드러나서 섞이지 않습니다.
+        </p>
+
+        <details class="full">
+          <summary>style.css 전체 보기 ({{LINES:web/style.css}}줄)</summary>
+          <div class="file">
+            <div class="file-bar">
+              <div class="file-name"><b>web/style.css</b></div>
+              <button class="copy">복사</button>
+            </div>
+            <pre>{{CODE:web/style.css}}</pre>
+          </div>
+        </details>
+      </section>
+
+      <section class="slide" data-stage="15" data-title="마무리">
+        <div class="eyebrow">15 · web</div>
+        <h1>여기까지가 전부입니다</h1>
+
+        <div class="flow">파일          코드 파일 56개
+계층          models → schemas → repositories → services → api
+AI            ai → rag → tools → graph
+검증          tests 40개 · eval 지표 4개
+화면          html 4 · js 4 · css 1</div>
+
+        <h2>안 쓴 것들</h2>
+        <div class="lines">
+          <div class="ln"><code>우리가 만든 상속</code><span><code>Base</code> 와 <code>BaseModel</code> 은 라이브러리가 준 것입니다</span></div>
+          <div class="ln"><code>제네릭</code><span><code>Generic[T]</code> · <code>TypeVar</code> 없음</span></div>
+          <div class="ln"><code>DI 컨테이너</code><span><code>Depends</code> 는 <code>get_db</code> 하나뿐</span></div>
+          <div class="ln"><code>커스텀 데코레이터</code><span><code>@router.get</code> / <code>@router.post</code> 만</span></div>
+          <div class="ln"><code>Raw SQL</code><span>ORM 만 씁니다</span></div>
+          <div class="ln"><code>LangChain 체인</code><span>OpenAI SDK 를 직접 부릅니다</span></div>
+          <div class="ln"><code>프런트 라이브러리</code><span><code>fetch</code> 만 씁니다</span></div>
+          <div class="ln"><code>utils / common / core</code><span>이름이 내용을 말하지 않는 폴더</span></div>
+        </div>
+
+        <h2>한 번에 돌려보기</h2>
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>터미널</b></div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>python -m pipeline.run_all
+uvicorn app.main:app --reload</pre>
+        </div>
+
+        <p class="dim">
+          <code class="inl">http://localhost:8000</code> 을 열면 질문하기 화면이 뜹니다.
+        </p>
+
+        <div class="note">
+          <div class="note-t">다음에 해볼 것</div>
+          <div class="lines">
+            <div class="ln">
+              <code>Supabase 전환</code>
+              <span>
+                SQLite → PostgreSQL + pgvector. <strong>고칠 곳은 네 군데</strong>입니다 —
+                <code>.env</code> 의 DATABASE_URL, <code>models/chunk.py</code> 의 컬럼 타입,
+                <code>ai/vector_store.py</code> 의 검색, <code>requirements.txt</code>.
+              </span>
+            </div>
+            <div class="ln">
+              <code>배포</code>
+              <span>코드는 그대로 두고 환경변수만 넣습니다.</span>
+            </div>
+            <div class="ln">
+              <code>advanced 브랜치</code>
+              <span>LangGraph 체크포인터로 대화 기억을 서버가 관리하는 방식</span>
+            </div>
+          </div>
+        </div>
+      </section>

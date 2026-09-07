@@ -1,0 +1,845 @@
+      <section class="slide" data-stage="10" data-title="폴더 개요">
+        <div class="eyebrow">10 · app/rag</div>
+        <h1>검색하고, 다시 줄 세웁니다</h1>
+
+        <p class="lead">
+          <strong>RAG 의 R</strong>(Retrieval)에 해당하는 폴더입니다.
+          파일 둘, 함수 다섯이 전부입니다.
+        </p>
+
+        <div class="flow">질문
+  ↓  retriever.retrieve    질문을 벡터로 → 가까운 조각 20개
+  ↓  reranker.rerank       AI 에게 물어 진짜 답 4개만
+참고 자료</div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>retriever.py</code>
+            <span><code>retrieve</code> · <code>print_results</code> · <code>main</code></span>
+          </div>
+          <div class="ln">
+            <code>reranker.py</code>
+            <span><code>pick_numbers</code> · <code>fill_up</code> · <code>rerank</code></span>
+          </div>
+        </div>
+
+        <h2>왜 두 번 거르나</h2>
+        <div class="flow">벡터 검색이 잘하는 것    단어와 뜻이 비슷한 글 찾기
+벡터 검색이 못하는 것    그중 무엇이 질문의 답인지 고르기</div>
+
+        <div class="file">
+          <div class="file-bar"><div class="file-name">"건성 피부에 쓸 토너 추천해줘" — 검색만 했을 때</div></div>
+          <pre class="out">    1  0.477  P103  사용법  비타민C 탄력 에센스 - 토너로 결을 정리한 뒤...
+    2  0.466  P125  사용법  병풀 수분 에센스 - 토너로 결을 정리한 뒤...
+    ...
+    9  0.440  P121  사용법  녹차 수분 토너 - 세안 후 가장 먼저...   ← 정작 이게 답</pre>
+        </div>
+
+        <p class="dim">
+          에센스 사용법에 <code class="inl">"토너로 결을 정리한 뒤"</code> 라는 문장이 있어
+          <strong>단어가 겹친 것</strong>입니다. 점수도 1위와 9위가 0.037 차이뿐입니다.
+        </p>
+
+        <div class="note">
+          <div class="note-t">후보를 20개로 넓히는 이유</div>
+          <p class="dim">
+            10개로 뽑아보니 <strong>9개가 전부 "사용법" 섹션</strong>이었습니다.
+            리랭커는 <strong>검색이 안 가져온 글을 만들어내지 못합니다.</strong>
+            20개로 넓히니 다른 섹션이 섞여 들어왔고, 실제 토너를 골라냈습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="10" data-title="retriever.py">
+        <div class="eyebrow">10 · app/rag</div>
+        <h1>retriever.py — 핵심은 두 줄입니다</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/rag/retriever.py</b> · 전체 · {{LINES:app/rag/retriever.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/rag/retriever.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>import sys</code>
+            <span>터미널에서 질문을 받으려고 씁니다. 검색 자체에는 안 쓰입니다.</span>
+          </div>
+          <div class="ln">
+            <code>vector_store · embed_texts</code>
+            <span>
+              <strong>이 둘을 이어주는 것이 이 파일의 일</strong>입니다.
+              질문을 벡터로 바꾸고(embedder), 가까운 것을 찾습니다(vector_store).
+            </span>
+          </div>
+        </div>
+
+        <h2>retrieve — 두 줄</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>embed_texts([question])[0]</code>
+            <span>
+              질문 하나를 <strong>목록에 담아</strong> 보내고 <strong>첫 번째</strong>를 꺼냅니다.
+              <code>embed_texts</code> 는 목록만 받기 때문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>vector_store.search(db, query_vector, top_k)</code>
+            <span>그 벡터와 가까운 청크를 찾습니다. 계산은 0.5밀리초면 끝납니다.</span>
+          </div>
+          <div class="ln">
+            <code>TOP_K = 10</code>
+            <span>
+              기본값입니다. 부르는 쪽이 바꿔 넘깁니다 —
+              <code>nodes.retrieve</code> 는 20, 추천은 40 을 씁니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>화면 출력 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>chunk["section"] or "후기"</code>
+            <span>
+              후기 조각에는 섹션이 없어서(<code>None</code>) <strong>"후기" 라고 대신</strong> 찍습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.replace("\n", " ")[:34]</code>
+            <span>
+              줄바꿈을 공백으로 바꾸고 <strong>34글자만</strong> 자릅니다.
+              한 줄 표에 넣으려는 것입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>f"{rank:&gt;3}  {chunk['score']:.3f}"</code>
+            <span>
+              <code>&gt;3</code> 은 <strong>오른쪽 정렬 세 칸</strong>,
+              <code>.3f</code> 는 <strong>소수점 셋째 자리까지</strong>.
+              숫자를 맞춰야 표가 흐트러지지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>f"{section:&lt;14}"</code>
+            <span><code>&lt;</code> 는 왼쪽 정렬. 글자는 왼쪽, 숫자는 오른쪽이 읽기 좋습니다.</span>
+          </div>
+        </div>
+
+        <h2>터미널에서 바로 확인</h2>
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>터미널</b></div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>python -m app.rag.retriever "건성 피부에 쓸 토너"</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>sys.argv</code>
+            <span>
+              터미널에서 <strong>같이 친 글자들</strong>이 목록으로 들어옵니다.
+              <code>[0]</code> 은 파일 이름, <code>[1]</code> 부터가 우리가 준 값입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>len(sys.argv) &lt; 2</code>
+            <span>질문을 안 주면 <strong>사용법을 알려주고</strong> 끝냅니다.</span>
+          </div>
+          <div class="ln">
+            <code>LLM 이 없습니다</code>
+            <span>
+              이 파일만으로 <strong>검색이 어디까지 되는지</strong> 확인할 수 있습니다.
+              AI 를 붙이기 전에 검색 품질을 먼저 봐야 합니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="10" data-title="reranker.py">
+        <div class="eyebrow">10 · app/rag</div>
+        <h1>reranker.py — AI 에게 번호만 답하게</h1>
+
+        <p>
+          전용 리랭커 API 를 쓰지 않고 <strong>OpenAI 에게 물어봅니다.</strong>
+          "이 중에 진짜 답이 되는 게 뭐야?" 라고요.
+          그러면 <strong>키가 하나로 유지</strong>되고 리랭킹 기준이 프롬프트에 그대로 드러납니다.
+        </p>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/rag/reranker.py</b> · 전체 · {{LINES:app/rag/reranker.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/rag/reranker.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>import re</code>
+            <span>AI 답변에서 <strong>숫자만 뽑아내려고</strong> 씁니다.</span>
+          </div>
+          <div class="ln">
+            <code>from app.ai import llm, prompts</code>
+            <span>
+              <strong>DB 를 안 씁니다.</strong> 그래서 <code>rerank</code> 는 <code>db</code> 인자를 안 받습니다.
+              이미 찾아온 후보를 줄 세우기만 합니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>왜 함수가 셋인가</h2>
+        <div class="flow">AI 답변  "다음 순서입니다: 3, 0, 25, 3"
+   ↓  pick_numbers    숫자만 뽑고, 범위 밖(25)과 중복(3) 버림  →  [3, 0]
+   ↓  fill_up         4개가 되게 원래 순서로 채움              →  [3, 0, 1, 2]
+   ↓  번호를 청크로 되돌림</div>
+
+        <p class="dim">
+          <strong>AI 가 시킨 대로 답하지 않을 때가 있습니다.</strong>
+          "반드시 4개" 라고 적었는데 1개만 고르거나, 없는 번호를 주거나, 말을 붙입니다.
+          그걸 받아내는 함수가 둘 필요합니다.
+        </p>
+
+        <h2>pick_numbers</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>re.findall(r"\d+", answer)</code>
+            <span>
+              글자 안의 <strong>모든 숫자 덩어리</strong>를 찾습니다.
+              <code>\d</code> 는 숫자 하나, <code>+</code> 는 하나 이상.
+              결과는 <strong>글자 목록</strong>이라 <code>int()</code> 로 바꿉니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>number &lt; count</code>
+            <span>
+              후보 개수보다 작은 것만. <strong>번호는 0부터</strong> 시작하므로
+              후보가 20개면 0~19 만 유효합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>number not in numbers</code>
+            <span>같은 번호를 두 번 고르는 경우를 막습니다.</span>
+          </div>
+        </div>
+
+        <h2>fill_up</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>range(count)</code>
+            <span><code>0, 1, 2, ...</code> — <strong>원래 검색 순서</strong>입니다.</span>
+          </div>
+          <div class="ln">
+            <code>if len(order) >= top_k: break</code>
+            <span>이미 충분히 채웠으면 그만합니다.</span>
+          </div>
+          <div class="ln">
+            <code>if number not in order</code>
+            <span>
+              AI 가 이미 고른 번호는 건너뛰고 <strong>안 고른 것 중 앞에서부터</strong> 채웁니다.
+              원래 검색 순서가 좋은 순서이기 때문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>order.append(...)</code>
+            <span>
+              받은 목록을 <strong>직접 고칩니다.</strong> 새 목록을 만들지 않습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>rerank — 본체</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>enumerate(chunks)</code>
+            <span>
+              <strong>번호와 값을 함께</strong> 꺼냅니다.
+              <code>start</code> 를 안 줘서 <strong>0부터</strong> 셉니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>f"[{number}] {chunk['content']}"</code>
+            <span>각 후보 앞에 번호를 붙입니다. AI 는 이 번호로만 답하면 됩니다.</span>
+          </div>
+          <div class="ln">
+            <code>.format(top_k=top_k)</code>
+            <span>
+              프롬프트의 <code>{top_k}</code> 자리에 숫자를 넣습니다.
+              <code>"...{top_k}개 고르세요" → "...4개 고르세요"</code>
+            </span>
+          </div>
+          <div class="ln">
+            <code>llm.ask(...)</code>
+            <span>
+              7단계에서 만든 함수를 <strong>그대로</strong> 씁니다.
+              리랭킹 전용 코드가 따로 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>[chunks[n] for n in order[:top_k]]</code>
+            <span>
+              번호를 <strong>실제 청크로 되돌립니다.</strong>
+              AI 에게 글을 다시 쓰게 하지 않아서 <strong>내용이 변하지 않습니다.</strong>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="11" data-title="폴더 개요">
+        <div class="eyebrow">11 · app/tools</div>
+        <h1>AI 가 고를 수 있는 도구 목록</h1>
+
+        <p class="lead">
+          RAG 로는 답할 수 없는 질문이 있습니다.
+          <strong>글을 아무리 잘 검색해도 나오지 않는 답</strong>입니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln"><code>"구매액이 가장 높은 고객 5명"</code><span>1,500건을 <strong>다 더해서 순위</strong></span></div>
+          <div class="ln"><code>"제일 많이 팔린 상품"</code><span>판매 수량을 <strong>세어야</strong></span></div>
+          <div class="ln"><code>"건성 고객이 몇 명이야"</code><span>개수를 <strong>세어야</strong></span></div>
+          <div class="ln"><code>"악성 후기를 남긴 고객"</code><span>청크에 <strong>고객 번호가 없습니다</strong></span></div>
+        </div>
+
+        <div class="flow">도구  →  Service  →  Repository  →  SQLAlchemy  →  DB</div>
+
+        <p>
+          <strong>도구 함수는 얇게 유지합니다.</strong>
+          Service 를 부르고 결과를 딕셔너리로 바꾸기만 합니다.
+        </p>
+
+        <h2>파일 하나로 둡니다</h2>
+        <div class="note">
+          <div class="note-t">customer_tools / product_tools / registry 로 안 나눕니다</div>
+          <p class="dim">
+            실제 내용은 <strong>얇은 함수 5개와 설명서</strong>가 전부입니다.
+            한 화면에 다 보여야 <strong>"AI 가 고를 수 있는 목록" 이 무엇인지</strong> 한눈에 들어옵니다.
+          </p>
+        </div>
+
+        <h2>도구를 늘려도 분기 코드는 안 고칩니다</h2>
+        <div class="lines">
+          <div class="ln"><code>tools.py</code><span>함수 하나 + 설명서 하나 추가</span></div>
+          <div class="ln"><code>services · repositories</code><span>쿼리 하나 + 부르는 줄</span></div>
+          <div class="ln">
+            <code>graph/nodes.py · graph.py</code>
+            <span><strong>0줄.</strong> <code>plan</code> 이 알아서 새 도구를 고릅니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="11" data-title="tools.py">
+        <div class="eyebrow">11 · app/tools</div>
+        <h1>tools.py — 함수 · 사전 · 설명서 · 실행기</h1>
+
+        <h2>이 파일에 있는 것 — {{LINES:app/tools/tools.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>get_top_customers</code><span>구매액 순위 (연락처 포함)</span></div>
+          <div class="ln"><code>get_best_selling_products</code><span>판매 수량 순위</span></div>
+          <div class="ln"><code>count_customers_by_skin_type</code><span>피부 타입별 개수</span></div>
+          <div class="ln"><code>get_products_by_category</code><span>카테고리별 상품</span></div>
+          <div class="ln"><code>get_unhappy_customers</code><span>평점 낮은 후기를 쓴 고객</span></div>
+          <div class="ln"><code>TOOLS</code><span><strong>이름 → 함수</strong> 사전</span></div>
+          <div class="ln"><code>TOOL_SPECS</code><span>AI 에게 보여줄 <strong>설명서</strong></span></div>
+          <div class="ln"><code>run_tool(db, name, arguments)</code><span>고른 도구를 실제로 실행</span></div>
+          <div class="ln"><code>main()</code><span>터미널에서 도구 선택을 확인</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/tools/tools.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/tools/tools.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from app.services import customer_service, product_service</code>
+            <span>
+              <strong>Repository 를 직접 안 부릅니다.</strong> Service 를 거칩니다.
+              계층을 건너뛰지 않으려는 것입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>llm 과 prompts 도 가져옵니다</code>
+            <span>맨 아래 <code>main()</code> 이 터미널에서 도구 선택을 시험해 보려고 씁니다.</span>
+          </div>
+        </div>
+
+        <h2>도구 함수 다섯</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>첫 인자는 항상 db</code>
+            <span>
+              <strong>AI 가 주는 것이 아니라 우리가 넣습니다.</strong>
+              그래서 설명서의 <code>properties</code> 에는 <code>db</code> 가 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>for customer, total_spend in rows</code>
+            <span>Repository 가 <strong>짝</strong>으로 주기 때문에 둘로 받아 풉니다.</span>
+          </div>
+          <div class="ln">
+            <code>딕셔너리로 바꾸는 이유</code>
+            <span>
+              <strong>DB 객체를 AI 에게 보낼 수 없습니다.</strong>
+              JSON 으로 안 바뀌고, 세션이 닫히면 값을 못 읽습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>phone · email 이 그대로</code>
+            <span>
+              도구 결과에는 <strong>연락처가 가려지지 않은 채</strong> 들어 있습니다.
+              <strong>이게 <code>mask</code> 노드가 필요한 이유</strong>입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>count_customers_by_skin_type 에는 limit 이 없습니다</code>
+            <span>피부 타입은 5개뿐이라 자를 이유가 없습니다.</span>
+          </div>
+        </div>
+
+        <h2>TOOLS 사전과 run_tool</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>"get_top_customers": get_top_customers</code>
+            <span>
+              값이 <strong>함수 그 자체</strong>입니다. 괄호가 없다는 점을 보세요.
+              부르지 않고 <strong>담아두는 것</strong>입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>TOOLS[name](db, **arguments)</code>
+            <span>
+              사전에서 함수를 꺼내 <strong>바로 부릅니다.</strong>
+              앞이 함수, 뒤의 괄호가 호출입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>**arguments</code>
+            <span>
+              딕셔너리를 <strong>인자로 풀어서</strong> 넘깁니다.
+              <code>{"limit": 3}</code> → <code>limit=3</code>
+            </span>
+          </div>
+        </div>
+
+        <h2>TOOL_SPECS — 설명이 곧 분기 기준</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>"name"</code>
+            <span>
+              <strong><code>TOOLS</code> 사전의 열쇠와 정확히 같아야</strong> 합니다.
+              한 글자만 달라도 <code>KeyError</code> 입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"description"</code>
+            <span>
+              <strong>가장 중요한 칸입니다.</strong> AI 는 이 글만 보고 도구를 고릅니다.
+              "우수 고객, 큰손, 구매액 순위" 처럼 <strong>같은 뜻의 여러 표현</strong>을 넣어두면
+              어떤 말로 물어도 잡힙니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>카테고리를 나열했습니다</code>
+            <span>
+              설명에 <strong>실제 값 목록</strong>을 적어두면 AI 가
+              "수분크림" 같은 없는 카테고리를 지어내지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"required": ["category"]</code>
+            <span>
+              <strong>반드시 있어야 하는 인자.</strong> 없으면 AI 가 질문에서 찾아내거나,
+              못 찾으면 이 도구를 안 고릅니다.
+              <code>limit</code> 은 파이썬 쪽에 기본값이 있어서 안 적었습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"parameters": {"type": "object", "properties": {}}</code>
+            <span>
+              인자가 없는 도구도 <strong>빈 껍데기는 적어야</strong> 합니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">터미널에서 확인해 보기</div>
+          <div class="file">
+            <div class="file-bar">
+              <div class="file-name"><b>터미널</b></div>
+              <button class="copy">복사</button>
+            </div>
+            <pre>python -m app.tools.tools "구매액이 가장 높은 고객 3명"</pre>
+          </div>
+          <p class="dim">
+            AI 가 어떤 도구를 골랐는지, 인자를 뭘로 정했는지 찍어줍니다.
+            <strong>"3명" 이라고 하면 AI 가 <code class="inl">limit=3</code> 을 넣습니다</strong> —
+            우리가 파싱한 게 아니라 AI 가 질문에서 읽어낸 것입니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="12" data-title="폴더 개요">
+        <div class="eyebrow">12 · app/graph</div>
+        <h1>흐름을 그림처럼 적어둡니다</h1>
+
+        <div class="flow">            START
+              ↓
+            plan            AI 를 한 번 부르며 도구 목록을 건넨다
+              ↓
+      ┌───────┴───────┐
+   route=tool      route=rag
+      ↓               ↓
+  run_tools       retrieve
+      │               ↓
+      │            rerank
+      └───────┬───────┘
+              ↓
+            mask          두 길이 여기서 만난다
+              ↓
+          generate
+              ↓
+             END</div>
+
+        <div class="lines">
+          <div class="ln"><code>state.py</code><span>노드끼리 <strong>주고받는 값</strong>의 목록</span></div>
+          <div class="ln"><code>nodes.py</code><span><strong>노드 6개.</strong> 전부 같은 모양의 함수</span></div>
+          <div class="ln"><code>graph.py</code><span><strong>노드와 연결만.</strong> 위 그림과 한 줄씩 대응</span></div>
+        </div>
+
+        <h2>두 길이 mask 에서 만납니다</h2>
+        <p>
+          어느 쪽으로 갔든 반드시 여기를 지나야 <code class="inl">generate</code> 로 갈 수 있어서,
+          <strong>가려지지 않은 개인정보가 밖으로 나갈 수 없습니다.</strong>
+        </p>
+
+        <h2>if 문으로 짜도 되는데 왜 LangGraph 인가</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>흐름이 목록이 됩니다</h3>
+            <p>그림과 코드가 한 줄씩 대응됩니다. 노드를 끼워 넣으려면 줄 하나만 바꿉니다.</p>
+          </div>
+          <div class="card">
+            <h3>노드별로 잴 수 있습니다</h3>
+            <p>어디가 느리고 어디서 토큰을 많이 쓰는지 따로 나옵니다. LangSmith 가 알아서 합니다.</p>
+          </div>
+          <div class="card">
+            <h3>단계마다 알려줄 수 있습니다</h3>
+            <p>"지금 retrieve 끝남" 을 밖으로 흘려보낼 수 있습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="12" data-title="state.py">
+        <div class="eyebrow">12 · app/graph</div>
+        <h1>state.py — 노드끼리 주고받는 값</h1>
+
+        <p>
+          <strong>노드들이 서로를 직접 부르지 않습니다.</strong>
+          각자 이 상자에 값을 채워 넣고, 다음 노드가 거기서 꺼내 씁니다.
+        </p>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/graph/state.py</b> · 전체 · {{LINES:app/graph/state.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/graph/state.py}}</pre>
+        </div>
+
+        <h2>칸마다 누가 채우고 누가 쓰는지</h2>
+        <div class="lines">
+          <div class="ln"><code>db</code><span>시작할 때 넣습니다 → <strong>run_tools · retrieve</strong> 가 씁니다</span></div>
+          <div class="ln"><code>question</code><span>시작할 때 넣습니다 → <strong>거의 모든 노드</strong></span></div>
+          <div class="ln"><code>history</code><span>시작할 때 넣습니다 → <strong>plan · retrieve · generate</strong></span></div>
+          <div class="ln"><code>route</code><span><strong>plan</strong> 이 채웁니다 → 갈림길과 <strong>generate</strong> 가 봅니다</span></div>
+          <div class="ln"><code>tool_calls</code><span><strong>plan</strong> → <strong>run_tools</strong></span></div>
+          <div class="ln"><code>tool_result</code><span><strong>run_tools</strong> → <strong>mask</strong> 가 가립니다</span></div>
+          <div class="ln"><code>documents</code><span><strong>retrieve</strong> 가 채우고 <strong>rerank</strong> 가 줄입니다</span></div>
+          <div class="ln"><code>answer</code><span><strong>generate</strong> 가 채웁니다 → 우리가 꺼냅니다</span></div>
+          <div class="ln"><code>path</code><span>노드마다 자기 이름을 붙입니다 → 화면에 보여줍니다</span></div>
+        </div>
+
+        <h2>줄별로 보면</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>TypedDict</code>
+            <span>
+              <strong>딕셔너리인데 어떤 키가 있는지 적어둔 것</strong>입니다.
+              클래스처럼 보이지만 실제로는 딕셔너리라
+              <code>state["question"]</code> 으로 꺼냅니다. <code>state.question</code> 이 아닙니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>db: Session</code>
+            <span>
+              세션을 state 에 담습니다. LangGraph 에 따로 건네는 방법도 있지만
+              <strong>개념이 하나 더 늘어서</strong> 이렇게 했습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>path: list</code>
+            <span>
+              LangGraph 에 자동으로 이어 붙이는 기능이 있지만
+              <strong>개념이 늘어서 안 씁니다.</strong>
+              각 노드가 <code>state["path"] + ["이름"]</code> 으로 직접 붙입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">왜 이런 상자가 필요한가요</div>
+          <p class="dim">
+            노드가 서로를 직접 부르면 <strong>순서가 코드에 박힙니다.</strong>
+            상자에 담아 두면 노드는 "받아서 채우고 넘긴다" 만 하고,
+            순서는 <code class="inl">graph.py</code> 가 따로 정합니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="12" data-title="nodes.py">
+        <div class="eyebrow">12 · app/graph</div>
+        <h1>nodes.py — 노드는 전부 같은 모양입니다</h1>
+
+        <p class="lead">
+          <strong>state 를 받아서, 자기가 채운 값만 딕셔너리로 돌려줍니다.</strong>
+          돌려준 값이 state 에 덮어씌워지고 다음 노드로 넘어갑니다.
+        </p>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/graph/nodes.py</b> · 전체 · {{LINES:app/graph/nodes.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/graph/nodes.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from langgraph.config import get_stream_writer</code>
+            <span>노드 안에서 밖으로 흘려보내는 통로입니다.</span>
+          </div>
+          <div class="ln">
+            <code>as rerank_chunks · as retrieve_chunks</code>
+            <span>
+              가져오면서 <strong>이름을 바꿉니다.</strong>
+              이 파일에도 <code>rerank</code>, <code>retrieve</code> 라는 노드가 있어 겹치기 때문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>CANDIDATES = 20 · TOP_K = 4</code>
+            <span>
+              <strong>파일 위에 상수로</strong> 둡니다. 함수 안에 숫자를 박아두면 나중에 찾아야 합니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>plan — 분기가 정해지는 곳</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>build_history(...) + state["question"]</code>
+            <span>
+              <strong>앞 대화를 붙여서</strong> 물어봅니다.
+              안 붙이면 "그 5개를 정리해줘" 에서 도구를 못 고릅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>if not message.tool_calls</code>
+            <span>
+              <strong>여기가 분기 지점입니다.</strong> 도구를 안 골랐으면 <code>rag</code>,
+              골랐으면 <code>tool</code>. 규칙 판단이 이 한 줄뿐입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>return 이 두 개</code>
+            <span>
+              검색 경로면 <code>tool_calls</code> 를 안 채웁니다.
+              <strong>안 채운 칸은 원래 값이 그대로</strong> 남습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>json.loads(call.function.arguments)</code>
+            <span>
+              인자는 <strong>JSON 글자</strong>로 옵니다.
+              <code>'{"limit": 3}'</code> 을 딕셔너리로 바꿉니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>딕셔너리로 다시 담는 이유</code>
+            <span>
+              OpenAI 객체를 state 에 넣으면 다루기 번거롭습니다.
+              보통 딕셔너리로 두면 그대로 화면에도 보낼 수 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>가운데 네 노드</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>rows += tools.run_tool(...)</code>
+            <span>
+              AI 가 도구를 <strong>여러 개</strong> 고를 수도 있어서 반복문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>retrieve 도 앞 대화를 붙입니다</code>
+            <span>
+              <strong>프롬프트뿐 아니라 검색어에도</strong> 넣어야 합니다.
+              "그 5개를 정리해줘" 에는 상품 이름이 없어서 엉뚱한 글이 잡힙니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>rerank 가 documents 를 덮어씀</code>
+            <span>같은 칸에 20개 → 4개로 줄여 다시 넣습니다. 칸을 따로 안 만들어도 됩니다.</span>
+          </div>
+          <div class="ln">
+            <code>mask 는 둘 다 가립니다</code>
+            <span>
+              어느 길로 왔는지 <strong>따지지 않습니다.</strong>
+              한쪽은 어차피 비어 있고, <strong>빈 목록을 가려도 빈 목록</strong>입니다.
+              그래서 <code>if</code> 가 필요 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>state["path"] + ["이름"]</code>
+            <span>
+              앞선 경로에 자기 이름을 붙인 <strong>새 목록</strong>을 만듭니다.
+              원본을 고치지 않는 편이 안전합니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>generate — 온 길에 따라 다르게</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>if state["route"] == "tool"</code>
+            <span>
+              도구 결과를 정리하는 것과 문서를 읽고 답하는 것은
+              <strong>시키는 방식이 달라야</strong> 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>write = get_stream_writer()</code>
+            <span>
+              <strong><code>graph.invoke</code> 로 부르면 아무 데도 안 보내고 지나갑니다.</strong>
+              그래서 <code>POST /ask</code> 와 테스트가 그대로 동작합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>pieces.append(piece)</code>
+            <span>
+              밖으로 내보내면서 <strong>동시에 모아둡니다.</strong>
+              state 에 최종 답변도 채워야 하기 때문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"".join(pieces)</code>
+            <span>모아둔 조각을 <strong>사이에 아무것도 안 넣고</strong> 이어 붙입니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="12" data-title="graph.py">
+        <div class="eyebrow">12 · app/graph</div>
+        <h1>graph.py — 노드와 연결만 있습니다</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/graph/graph.py</b> · 전체 · {{LINES:app/graph/graph.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/graph/graph.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from langgraph.graph import END, START, StateGraph</code>
+            <span>
+              <code>START</code> 와 <code>END</code> 는 <strong>시작점과 끝점을 가리키는 표시</strong>입니다.
+              우리가 만든 노드가 아닙니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>choose_route</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>return state["route"]</code>
+            <span>
+              <strong>여기서 판단하지 않습니다.</strong>
+              <code>plan</code> 이 정해 둔 값을 읽기만 합니다.
+              판단을 두 곳에 두면 어긋날 수 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>build_graph — 그림을 코드로</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>StateGraph(GraphState)</code>
+            <span><strong>어떤 값을 들고 다닐지</strong> 정하면서 시작합니다.</span>
+          </div>
+          <div class="ln">
+            <code>add_node("이름", 함수)</code>
+            <span>
+              <strong>함수에 괄호가 없습니다</strong> — 부르지 않고 넘겨주기만 합니다.
+              <code>TOOLS</code> 사전과 같은 방식입니다.
+              이름은 연결을 적을 때와 <code>path</code> 에 쓰입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>add_edge(START, "plan")</code>
+            <span>시작하면 <code>plan</code> 부터 갑니다.</span>
+          </div>
+          <div class="ln">
+            <code>add_conditional_edges(...)</code>
+            <span>
+              <strong>갈림길입니다.</strong> 인자 셋을 순서대로 읽으면
+              "<code>plan</code> 이 끝나면 → <code>choose_route</code> 를 불러서 →
+              결과가 <code>tool</code> 이면 <code>run_tools</code>,
+              <code>rag</code> 면 <code>retrieve</code> 로".
+            </span>
+          </div>
+          <div class="ln">
+            <code>run_tools → mask<br />rerank → mask</code>
+            <span>
+              <strong>두 줄이 같은 곳을 가리킵니다.</strong>
+              이게 "두 길이 mask 에서 만난다" 입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>builder.compile()</code>
+            <span>
+              적어둔 것을 <strong>실행 가능한 그래프</strong>로 만듭니다.
+              연결이 잘못되어 있으면 여기서 오류가 납니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>graph = build_graph()</code>
+            <span>
+              파일을 불러올 때 <strong>딱 한 번</strong> 만듭니다.
+              질문할 때마다 다시 만들지 않습니다.
+              <code>db.py</code> 의 <code>engine</code> 과 같은 발상입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">파일 위 주석의 그림과 코드가 한 줄씩 대응됩니다</div>
+          <p class="dim">
+            흐름을 바꾸고 싶으면 <strong>이 파일 하나만</strong> 보면 됩니다.
+            <code class="inl">if/else</code> 로 짰다면 흐름이
+            <code class="inl">ask_service.py</code> 안에 코드로 흩어졌을 것입니다.
+          </p>
+        </div>
+      </section>

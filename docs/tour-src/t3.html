@@ -1,0 +1,1141 @@
+      <section class="slide" data-stage="6" data-title="폴더 개요">
+        <div class="eyebrow">6 · app/repositories</div>
+        <h1>DB 에 물어보는 함수들</h1>
+
+        <p class="lead">
+          <code class="inl">db.query(...)</code> 는 <strong>이 폴더에서만</strong> 씁니다.
+          쿼리를 고칠 일이 있으면 여기만 보면 됩니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln">
+            <code>customer_repository.py</code>
+            <span>
+              <code>find_all</code> · <code>find_by_skin_type</code> · <code>find_by_id</code> ·
+              <code>find_top_spenders</code> · <code>count_by_skin_type</code> ·
+              <code>find_ids_who_bought</code> · <code>find_candidates_for_product</code>
+            </span>
+          </div>
+          <div class="ln">
+            <code>product_repository.py</code>
+            <span>
+              <code>find_all</code> · <code>find_by_category</code> ·
+              <code>find_by_id</code> · <code>save</code>
+            </span>
+          </div>
+          <div class="ln">
+            <code>purchase_repository.py</code>
+            <span><code>find_by_customer</code> · <code>find_best_selling</code></span>
+          </div>
+          <div class="ln">
+            <code>review_repository.py</code>
+            <span><code>find_low_rated</code> · <code>find_by_customer</code></span>
+          </div>
+        </div>
+
+        <h2>이 폴더의 규칙</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>클래스 없이 함수만</h3>
+            <p>
+              <code>class ProductRepository:</code> 를 만들지 않습니다.
+              인스턴스를 어디서 만들지가 새 고민거리가 됩니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>첫 인자는 항상 db</h3>
+            <p>
+              함수가 세션을 <strong>직접 만들지 않고</strong> 받아서 씁니다.
+              누가 열고 닫을지는 부르는 쪽이 정합니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>ORM 만, Raw SQL 없음</h3>
+            <p>
+              긴 SQL 문자열을 안 씁니다.
+              오타를 파이썬이 먼저 잡아주고, DB 를 바꿔도 그대로 돕니다.
+            </p>
+          </div>
+        </div>
+
+        <h2>돌려주는 모양이 세 가지입니다</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>객체 목록</code>
+            <span><code>find_all</code> → <code>[Customer, Customer, ...]</code></span>
+          </div>
+          <div class="ln">
+            <code>(객체, 계산값) 짝</code>
+            <span>
+              <code>find_top_spenders</code> → <code>[(Customer, 596000), ...]</code>
+              <strong>합계액이 컬럼이 아니라 계산값</strong>이라 짝이 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>(객체, 객체) 짝</code>
+            <span>
+              <code>find_by_customer</code> → <code>[(Purchase, Product), ...]</code>
+              <strong>JOIN 으로 두 테이블을 함께</strong> 가져온 경우입니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="6" data-title="customer_repository.py">
+        <div class="eyebrow">6 · app/repositories</div>
+        <h1>customer_repository.py — 가장 많은 쿼리</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/repositories/customer_repository.py</b> · 전체 · {{LINES:app/repositories/customer_repository.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/repositories/customer_repository.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from sqlalchemy import desc, func</code>
+            <span>
+              <code>func</code> 은 <strong>SQL 함수를 부르는 통로</strong>(<code>SUM</code>, <code>COUNT</code>),
+              <code>desc</code> 는 내림차순 정렬입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Product 와 Purchase 도 가져옵니다</code>
+            <span>
+              고객 Repository 인데 왜? — <strong><code>JOIN</code> 에 필요</strong>합니다.
+              가격이 상품 테이블에 있어서 구매액을 계산하려면 셋 다 있어야 합니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>단순 조회 셋</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>db.query(Customer)</code>
+            <span>
+              <strong>"customers 테이블에서 뭔가 가져오겠다"</strong> 는 시작입니다.
+              아직 DB 에 아무것도 안 보냈습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.filter(조건)</code>
+            <span>
+              SQL 의 <code>WHERE</code>. <code>Customer.skin_type == skin_type</code> 은
+              파이썬 비교문처럼 보이지만 <strong>SQLAlchemy 가 조건식으로 해석</strong>합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.limit(20)</code>
+            <span>앞에서 20개만. 200개를 통째로 주면 화면이 느려집니다.</span>
+          </div>
+          <div class="ln">
+            <code>.all() / .first()</code>
+            <span>
+              <strong>이때 처음으로 DB 에 질의가 나갑니다.</strong>
+              <code>.first()</code> 는 하나만, 없으면 <code>None</code> 입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>집계 쿼리 — find_top_spenders</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>func.sum(Product.price * Purchase.quantity)</code>
+            <span>SQL 의 <code>SUM(price * quantity)</code>. 가격 × 수량을 더합니다.</span>
+          </div>
+          <div class="ln">
+            <code>.label("total_spend")</code>
+            <span>
+              계산 결과에 <strong>이름을 붙입니다.</strong>
+              아래 <code>order_by</code> 에서 이 이름으로 부를 수 있게 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>db.query(Customer, total_spend)</code>
+            <span><strong>객체 하나와 계산값 하나</strong>를 함께 가져옵니다. 그래서 짝으로 나옵니다.</span>
+          </div>
+          <div class="ln">
+            <code>.join(Purchase, 조건)</code>
+            <span>
+              구매 테이블을 이어 붙입니다. 두 번째 인자가 <strong>어떻게 잇는지</strong>입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.join(Product, 조건)</code>
+            <span>
+              상품 테이블도 잇습니다. 고객 → 구매 → 상품 순으로 이어집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.group_by(Customer.customer_id)</code>
+            <span>
+              <strong>고객별로 묶습니다.</strong> 이게 있어야 <code>SUM</code> 이
+              고객 한 명씩 계산됩니다. 없으면 전체 합계 하나만 나옵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>집계식을 변수에 먼저 담습니다</code>
+            <span>
+              <code>order_by</code> 에서 같은 식을 다시 안 써도 되고,
+              <strong>쿼리가 위에서 아래로 한 번에 읽힙니다.</strong>
+            </span>
+          </div>
+        </div>
+
+        <h2>추천용 두 함수</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>db.query(Purchase.customer_id)</code>
+            <span>
+              객체가 아니라 <strong>컬럼 하나만</strong> 가져옵니다.
+              번호만 필요한데 행 전체를 읽을 이유가 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>{row.customer_id for row in rows}</code>
+            <span>
+              컬럼 하나만 골라도 결과는 <strong>짝 모양</strong>으로 옵니다.
+              중괄호라 <strong>집합</strong>이 되어 중복이 자동으로 없어집니다 —
+              한 사람이 두 번 샀어도 한 번만 남습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.notin_(exclude_ids)</code>
+            <span>
+              SQL 의 <code>NOT IN</code>. 이 목록에 <strong>없는</strong> 행만 가져옵니다.
+              밑줄이 뒤에 붙는 이유는 <code>in</code> 이 파이썬 예약어라서입니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="6" data-title="나머지 Repository 셋">
+        <div class="eyebrow">6 · app/repositories</div>
+        <h1>product · purchase · review</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/repositories/product_repository.py</b> · 전체 · {{LINES:app/repositories/product_repository.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/repositories/product_repository.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>save(db, product)</code>
+            <span>
+              <strong>이 폴더에서 유일하게 쓰는 함수</strong>입니다.
+              나머지는 전부 읽기만 합니다.
+              <code>commit</code> 뒤에 객체를 다시 돌려줘서 부르는 쪽이 바로 쓸 수 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/repositories/purchase_repository.py</b> · 전체 · {{LINES:app/repositories/purchase_repository.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/repositories/purchase_repository.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>db.query(Purchase, Product)</code>
+            <span>
+              <strong>객체 두 개</strong>를 함께 가져옵니다.
+              구매에는 상품 번호만 있고 이름이 없어서 <code>JOIN</code> 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.order_by(Purchase.purchased_at.desc())</code>
+            <span>
+              <strong>최근 순.</strong> 컬럼에 직접 <code>.desc()</code> 를 붙입니다.
+              계산값이 아니라 진짜 컬럼이라 이렇게 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>이 정렬에 기대는 곳이 둘</code>
+            <span>
+              <strong>18단계 프로필</strong>(최근 5개만 씁니다)과
+              <strong>21단계 채점</strong>("맨 앞이 마지막 구매").
+              정렬을 바꾸면 둘 다 틀어집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>find_best_selling</code>
+            <span>
+              <code>find_top_spenders</code> 와 모양이 같습니다.
+              <strong>무엇으로 묶고 무엇을 더하는지만</strong> 다릅니다 —
+              상품별로 묶고 수량을 더합니다. 가격이 필요 없어서 <code>JOIN</code> 도 하나입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/repositories/review_repository.py</b> · 전체 · {{LINES:app/repositories/review_repository.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/repositories/review_repository.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>db.query(Review, Customer, Product)</code>
+            <span>
+              <strong>객체 세 개.</strong> 후기에는 번호만 있어서
+              이름을 보려면 둘 다 이어 붙여야 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.filter(Review.rating &lt;= max_rating)</code>
+            <span>
+              <strong>비교 연산</strong>입니다. 다른 곳은 <code>==</code> 만 썼는데
+              여기는 "이하" 라서 <code>&lt;=</code> 를 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>order_by(Review.rating, Review.written_at.desc())</code>
+            <span>
+              <strong>먼저 평점 낮은 순, 같으면 최근 순.</strong>
+              쉼표로 나열하면 앞에 적은 것이 우선입니다.
+              <code>rating</code> 에는 <code>.desc()</code> 를 안 붙여서 1점이 먼저 옵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>find_by_customer</code>
+            <span>
+              purchase 쪽과 <strong>모양이 똑같습니다.</strong> 이런 반복은 그대로 둡니다 —
+              공통 함수로 묶으면 "어느 테이블인지" 를 인자로 넘겨야 하고 그게 더 읽기 어렵습니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="7" data-title="폴더 개요">
+        <div class="eyebrow">7 · app/services</div>
+        <h1>여러 조각을 묶는 자리</h1>
+
+        <p class="lead">
+          Repository 를 부르기만 하는 얇은 함수도 있고,
+          <strong>다섯 단계를 묶는 두꺼운 함수</strong>도 있습니다.
+          그 두꺼운 쪽이 이 계층이 있는 이유입니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln">
+            <code>customer_service.py</code>
+            <span>
+              <code>get_customers</code> · <code>get_top_spenders</code> ·
+              <code>count_by_skin_type</code> · <code>get_unhappy_customers</code> ·
+              변환 함수 셋 · <strong><code>get_customer_detail</code></strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>product_service.py</code>
+            <span>
+              <code>get_products</code> · <code>get_best_selling</code> ·
+              <code>get_product_detail</code> · <strong><code>create_product</code></strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>ask_service.py</code>
+            <span>
+              <code>build_state</code> · <code>build_answer</code> ·
+              <code>ask</code> · <code>ask_stream</code>
+            </span>
+          </div>
+          <div class="ln">
+            <code>recommend_service.py</code>
+            <span>
+              <code>build_customer_profile</code> · <code>drop_bought</code> ·
+              <code>recommend_products</code> · <code>build_candidate_line</code> ·
+              <code>recommend_customers</code>
+            </span>
+          </div>
+        </div>
+
+        <h2>얇은 것과 두꺼운 것</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>얇은 것</h3>
+            <p>
+              <code>get_products</code> — 카테고리가 있으면 이 쿼리, 없으면 저 쿼리.
+              <strong>판단 한 줄</strong>이 전부입니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>두꺼운 것</h3>
+            <p>
+              <code>create_product</code> — 저장 → 자르기 → 임베딩 → 벡터 저장 → 캐시 비우기.
+              <strong>API 에 넣기엔 길고 Repository 에 넣기엔 DB 일이 아닙니다.</strong>
+            </p>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">Service 가 잘 하는 일 세 가지</div>
+          <div class="lines">
+            <div class="ln"><code>여러 Repository 묶기</code><span><code>get_customer_detail</code> — 셋을 묶습니다</span></div>
+            <div class="ln"><code>여러 계층 묶기</code><span><code>create_product</code> — DB · 청킹 · 임베딩</span></div>
+            <div class="ln"><code>객체를 딕셔너리로</code><span>변환 함수들 — 화면에 보낼 모양으로</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="7" data-title="customer_service.py">
+        <div class="eyebrow">7 · app/services</div>
+        <h1>customer_service.py — 셋을 묶습니다</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/services/customer_service.py</b> · 전체 · {{LINES:app/services/customer_service.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/services/customer_service.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from app.ai import masking</code>
+            <span>
+              <strong>Service 가 AI 폴더를 부르는 드문 경우</strong>입니다.
+              가리는 일은 DB 일도 HTTP 일도 아니라서 여기서 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Repository 셋을 가져옵니다</code>
+            <span>customer · purchase · review. <strong>이 셋을 묶는 것이 이 파일의 일</strong>입니다.</span>
+          </div>
+        </div>
+
+        <h2>얇은 함수 넷</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>get_customers</code>
+            <span>
+              <code>if skin_type:</code> 한 줄이 <strong>업무 로직</strong>입니다.
+              어떤 쿼리를 쓸지 고르는 판단이요.
+            </span>
+          </div>
+          <div class="ln">
+            <code>get_top_spenders · count_by_skin_type · get_unhappy_customers</code>
+            <span>
+              Repository 를 <strong>그대로 부르기만</strong> 합니다.
+              <code>tools.py</code> 가 이 셋을 부릅니다 —
+              도구가 Repository 를 직접 부르지 않게 하려는 것입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>변환 함수 셋</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>to_purchase_row(purchase, product)</code>
+            <span>
+              <strong>두 객체에서 골라 담습니다.</strong>
+              <code>quantity</code> 는 구매에서, <code>product_name</code> 과 <code>price</code> 는 상품에서.
+              화면에 필요한 것만 <strong>평평한 한 줄</strong>로 합칩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>왜 딕셔너리인가</code>
+            <span>
+              객체 짝을 그대로 내보내면 <strong>어느 쪽 값인지</strong> 화면에서 알기 어렵습니다.
+              평평하게 만들면 그대로 표가 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>함수로 뺀 이유</code>
+            <span>
+              <code>get_customer_detail</code> 안에서 두 번 쓰이고,
+              읽을 때 <strong>"무엇을 담는지" 만 따로 보기</strong> 편합니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>get_customer_detail — 이 파일의 핵심</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>if not customer: return None</code>
+            <span>
+              없는 고객이면 <strong>None 으로 알려줍니다.</strong>
+              404 로 바꾸는 일은 API 가 합니다. <strong>Service 는 HTTP 를 모릅니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>for purchase, product in ...</code>
+            <span>Repository 가 <strong>짝</strong>으로 주기 때문에 둘로 받아 풉니다.</span>
+          </div>
+          <div class="ln">
+            <code>mask_rows([row])[0]</code>
+            <span>
+              <code>mask_rows</code> 는 <strong>목록만</strong> 받습니다.
+              하나를 담아 넣고 첫 번째를 꺼냅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"customer" 와 "masked" 를 둘 다</code>
+            <span>
+              <strong>화면에 나란히 놓기 위해서</strong>입니다.
+              "AI 는 무엇을 보고 무엇을 못 보는가" 를 눈으로 확인할 수 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>sum(price * quantity for ...)</code>
+            <span>
+              파이썬으로 더합니다. <code>find_top_spenders</code> 는 SQL 이 더했습니다.
+              <strong>이미 가져온 목록이 있으면 여기서 더하는 편이 간단</strong>합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>18단계·21단계가 이 함수를 씁니다</code>
+            <span>
+              추천용으로 새 조회를 만들지 않았습니다.
+              <strong>이 하나를 셋이 나눠 씁니다.</strong>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="7" data-title="product_service.py">
+        <div class="eyebrow">7 · app/services</div>
+        <h1>product_service.py — 다섯 단계를 묶습니다</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/services/product_service.py</b> · 전체 · {{LINES:app/services/product_service.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/services/product_service.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>vector_store · chunker · embed_texts</code>
+            <span>
+              <strong>AI 폴더에서 셋을 가져옵니다.</strong>
+              이 파일이 계층을 넘나드는 것이 여기서 드러납니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>from app.models.product import Product</code>
+            <span>
+              Service 가 모델을 직접 가져오는 드문 경우입니다.
+              <strong>객체를 새로 만들어야</strong> 하기 때문입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>get_product_detail</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>"detail": product.detail</code>
+            <span>
+              <strong>따로 한 번 더 담습니다.</strong>
+              <code>ProductOut</code> 에는 <code>detail</code> 이 없어서
+              <code>product</code> 안으로는 안 나갑니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"total_chunks"</code>
+            <span>
+              DB 전체 청크 수. <strong>"3,060개 중 이 상품이 9개"</strong> 처럼 대비해 보여주려는 것입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>create_product — 이 파일의 핵심</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>if find_by_id(...): return None</code>
+            <span>
+              <strong>가장 먼저</strong> 확인합니다. 이미 있는 번호로 저장하면 기본키가 겹칩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>data.model_dump()</code>
+            <span>Pydantic 객체를 <strong>딕셔너리</strong>로 바꿉니다.</span>
+          </div>
+          <div class="ln">
+            <code>Product(**...)</code>
+            <span>
+              그 딕셔너리를 <strong>인자로 풀어</strong> 모델 객체를 만듭니다.
+              두 쪽의 항목 이름이 같아서 가능합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>make_product_chunks(product)</code>
+            <span>
+              <strong><code>pipeline/chunk.py</code> 와 같은 함수</strong>를 씁니다.
+              규칙이 한 곳에 있어서 최초 적재와 신규 등록의 결과가 어긋나지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>add_chunks → embed_texts → save_embeddings</code>
+            <span>
+              먼저 <strong>글만 저장</strong>하고, 임베딩한 다음, 벡터를 붙입니다.
+              두 단계라 중간에 실패해도 청크는 남습니다 —
+              그러면 <code>python -m pipeline.embed</code> 로 마저 채웁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>vector_store.clear_memory()</code>
+            <span>
+              <strong>빼먹으면 등록은 되는데 검색에 안 나옵니다.</strong>
+              메모리에 올려둔 옛 벡터만 계속 쓰기 때문입니다.
+              캐시를 두면 갱신할 책임이 따라옵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>new_chunks · total_chunks</code>
+            <span>
+              <strong>응답에 숫자를 담습니다.</strong>
+              "3,066개 중 6개만" 이 화면에 그대로 보이게 하려는 것입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">이 함수가 Service 계층의 존재 이유입니다</div>
+          <p class="dim">
+            <strong>Repository · Chunker · Embedder · VectorStore</strong> 넷을 묶습니다.
+            API 에 넣기엔 너무 길고, Repository 에 넣기엔 DB 일이 아닙니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="7" data-title="ask_service.py">
+        <div class="eyebrow">7 · app/services</div>
+        <h1>ask_service.py — 그래프를 부르고 정리합니다</h1>
+
+        <p>
+          <strong>순서를 직접 관리하지 않습니다.</strong>
+          검색·리랭킹·마스킹·생성의 순서는 <code class="inl">app/graph/graph.py</code> 가 압니다.
+          이 파일은 그래프에 넣을 값을 만들고, 나온 값을 화면 모양으로 바꿉니다.
+        </p>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/services/ask_service.py</b> · 전체 · {{LINES:app/services/ask_service.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/services/ask_service.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from app.graph.graph import graph</code>
+            <span>
+              <strong>가져오는 것이 이 한 줄뿐</strong>입니다.
+              Repository 도 LLM 도 안 부릅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>graph 는 객체입니다</code>
+            <span>
+              함수가 아니라 <strong>이미 만들어진 그래프</strong>입니다.
+              <code>graph.py</code> 가 파일을 불러올 때 한 번 만들어 둡니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>함수 정의 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>build_state(db, question, history)</code>
+            <span>
+              <code>GraphState</code> 의 <strong>모든 칸을 빈 값으로 채운</strong> 딕셔너리를 만듭니다.
+              노드가 안 채운 칸을 꺼내도 오류가 나지 않게 하려는 것입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>build_answer(question, result)</code>
+            <span>
+              화면에 보낼 모양으로 바꿉니다.
+              <strong>state 를 그대로 내보내지 않습니다</strong> —
+              <code>db</code> 세션이 들어 있어서 JSON 으로 안 바뀝니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>" -> ".join(result["path"])</code>
+            <span>
+              목록을 화살표로 이어 <strong>한 줄 글자</strong>로 만듭니다.
+              <code>["plan", "mask"] → "plan -> mask"</code>
+            </span>
+          </div>
+          <div class="ln">
+            <code>둘로 나눈 이유</code>
+            <span>
+              <code>ask</code> 와 <code>ask_stream</code> 이 <strong>둘 다 씁니다.</strong>
+              한 함수에 몰아뒀다면 복붙이 생깁니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>ask — 기다렸다 한 번에</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>graph.invoke(...)</code>
+            <span>그래프를 <strong>처음부터 끝까지</strong> 돌리고 최종 state 를 돌려줍니다.</span>
+          </div>
+          <div class="ln">
+            <code>history or []</code>
+            <span>
+              <code>None</code> 이면 빈 목록. 기본값에 <code>[]</code> 를 직접 안 적는 이유는,
+              파이썬에서 <strong>기본값 목록은 호출들 사이에 공유</strong>되어 사고가 나기 때문입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>ask_stream — 오는 대로</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>stream_mode=["updates", "custom"]</code>
+            <span>
+              <strong>두 가지를 함께</strong> 받겠다는 뜻입니다.
+              <code>updates</code> 는 노드가 채운 값,
+              <code>custom</code> 은 노드 안에서 흘려보낸 글자 조각입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>for source, data in ...</code>
+            <span>
+              두 가지를 함께 받으면 <strong>(어느 쪽인지, 내용) 짝</strong>으로 옵니다.
+              하나만 받을 때는 내용만 옵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>result.update(filled)</code>
+            <span>
+              노드가 채운 값을 <strong>계속 모아둡니다.</strong>
+              <code>graph.stream</code> 은 <code>invoke</code> 와 달리
+              최종 state 를 따로 주지 않아서 직접 쌓아야 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>result.get("route", "")</code>
+            <span>
+              <code>result["route"]</code> 가 아닙니다. 아직 <code>plan</code> 이 안 끝났을 수 있어서
+              <strong>없으면 빈 문자열</strong>을 쓰도록 <code>get</code> 을 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>yield 가 셋</code>
+            <span>
+              <code>piece</code> · <code>node</code> · <code>done</code>.
+              <strong>이 함수는 제너레이터</strong>라 부르는 쪽이 <code>for</code> 로 받습니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="7" data-title="recommend_service.py">
+        <div class="eyebrow">7 · app/services</div>
+        <h1>recommend_service.py — 방향에 따라 방법이 다릅니다</h1>
+
+        <div class="cards">
+          <div class="card">
+            <h3>고객 → 상품</h3>
+            <p>
+              <strong>벡터 검색 (RAG)</strong><br />
+              상품 문서가 임베딩되어 있습니다
+            </p>
+          </div>
+          <div class="card">
+            <h3>상품 → 고객</h3>
+            <p>
+              <strong>SQL + AI 순위</strong><br />
+              고객 정보는 임베딩하지 않았습니다
+            </p>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/services/recommend_service.py</b> · 전체 · {{LINES:app/services/recommend_service.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/services/recommend_service.py}}</pre>
+        </div>
+
+        <h2>상수 셋</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>CANDIDATES = 40</code>
+            <span>
+              <code>/ask</code> 는 20개인데 여기는 40개입니다.
+              <strong>이미 산 것을 걸러내면 줄어들기 때문</strong>입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>CUSTOMER_CANDIDATES = 10</code>
+            <span>
+              <strong>SQL 이 이미 좁혀줘서</strong> 적게 뽑아도 됩니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>고객 → 상품</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>build_customer_profile(detail)</code>
+            <span>
+              고객을 <strong>검색어 한 덩어리</strong>로 바꿉니다.
+              <code>[:5]</code> 로 최근 5개만 — 다 넣으면 오래된 취향이 최근 취향을 덮습니다.
+              <strong>이름·전화·이메일은 안 넣습니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>masking.mask(build_customer_profile(...))</code>
+            <span>
+              그래도 <strong>만들자마자 가립니다.</strong>
+              후기 본문에 연락처가 섞여 있을 수 있고,
+              이 문장은 <strong>곧바로 임베딩 API 로 나갑니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>drop_bought(chunks, bought_ids)</code>
+            <span>
+              프롬프트에 "이미 산 것은 빼세요" 라고 적어도 AI 가 가끔 놓칩니다.
+              <strong>반드시 지켜야 하는 조건은 부탁하지 말고 코드로</strong> 처리합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>drop_bought(retrieve(...), ...)</code>
+            <span>
+              <strong>검색 → 걸러내기 → 리랭킹</strong> 순서입니다.
+              걸러낸 다음에 리랭킹해야 AI 가 헛것을 고르지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"profile": profile</code>
+            <span>
+              <strong>검색어를 그대로 돌려줍니다.</strong>
+              추천이 이상할 때 프로필이 문제인지 검색이 문제인지 구분됩니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>상품 → 고객</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>build_candidate_line(db, customer)</code>
+            <span>
+              후보 한 명을 <strong>한 줄</strong>로 만듭니다.
+              구매 3건·후기 2건만 — 다 넣으면 후보 10명의 글이 프롬프트를 넘칩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>find_by_customer(..., 3)</code>
+            <span>
+              14단계에서 만든 함수에 <strong>limit 을 3으로</strong> 넘깁니다.
+              인자를 열어둔 덕분에 새 함수를 안 만들어도 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>masking.mask(line)</code>
+            <span>
+              한 줄을 만든 <strong>직후에</strong> 가립니다.
+              <strong>이름과 고객번호는 남깁니다</strong> — 누구인지 답해야 하니까요.
+            </span>
+          </div>
+          <div class="ln">
+            <code>rerank 를 안 씁니다</code>
+            <span>
+              리랭커는 <strong>번호만</strong> 받습니다.
+              여기서는 이유까지 받아야 해서 <code>llm.ask</code> 로 한 번에 처리합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"candidates": lines</code>
+            <span>
+              <strong>AI 에게 실제로 보낸 후보 목록</strong>을 화면에도 보여줍니다.
+              가려진 그대로라 무엇을 보고 골랐는지 확인됩니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">retrieve · rerank · mask_chunks · llm.ask 를 그대로 씁니다</div>
+          <p class="dim">
+            추천 전용으로 새로 만든 것은 <code class="inl">build_customer_profile</code>,
+            <code class="inl">drop_bought</code>, <code class="inl">build_candidate_line</code> 셋뿐입니다.
+            <strong>나머지는 전부 앞에서 만든 것</strong>입니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="8" data-title="폴더 개요">
+        <div class="eyebrow">8 · app/api</div>
+        <h1>요청을 받아 Service 에 넘깁니다</h1>
+
+        <p class="lead">
+          <strong>HTTP 를 아는 유일한 계층</strong>입니다.
+          DB 를 직접 만지지 않고, 업무 판단도 하지 않습니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln"><code>products.py</code><span>목록 · 상세 · 등록</span></div>
+          <div class="ln"><code>customers.py</code><span>목록 · 상세</span></div>
+          <div class="ln"><code>ask.py</code><span>질문 · 스트리밍 질문</span></div>
+          <div class="ln"><code>recommend.py</code><span>두 방향 추천</span></div>
+        </div>
+
+        <h2>이 계층이 하는 일은 넷뿐입니다</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>주소와 함수를 잇는다</h3>
+            <p><code>@router.get</code> / <code>@router.post</code></p>
+          </div>
+          <div class="card">
+            <h3>값을 꺼낸다</h3>
+            <p>주소 뒤의 값, 주소에 박힌 값, 요청 본문</p>
+          </div>
+          <div class="card">
+            <h3>세션을 받는다</h3>
+            <p><code>Depends(get_db)</code></p>
+          </div>
+          <div class="card">
+            <h3>None 을 상태 코드로</h3>
+            <p>404 · 409</p>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">Depends 는 get_db 하나만 씁니다</div>
+          <p class="dim">
+            FastAPI 의 <code class="inl">Depends</code> 는 여러 가지를 주입할 수 있지만,
+            이 프로젝트에서는 <strong>세션 하나만</strong> 씁니다.
+            늘리면 "이 인자가 어디서 왔지" 를 찾아 다녀야 합니다.
+          </p>
+        </div>
+
+        <div class="note">
+          <div class="note-t">데코레이터도 둘만 씁니다</div>
+          <p class="dim">
+            <code class="inl">@router.get</code> 과 <code class="inl">@router.post</code> 뿐입니다.
+            우리가 만든 데코레이터는 하나도 없습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="8" data-title="products.py · customers.py">
+        <div class="eyebrow">8 · app/api</div>
+        <h1>값을 받는 세 가지 방법</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/api/products.py</b> · 전체 · {{LINES:app/api/products.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/api/products.py}}</pre>
+        </div>
+
+        <h2>세 엔드포인트가 각각 다르게 받습니다</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>category: str = None</code>
+            <span>
+              <strong>주소 뒤의 물음표 값</strong>입니다.
+              <code>/products?category=토너</code>.
+              기본값이 있으면 <strong>선택 항목</strong>이 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>product_id: str</code>
+            <span>
+              <strong>주소에 박힌 값</strong>입니다. <code>/products/P001</code>.
+              중괄호 이름과 인자 이름이 같아야 FastAPI 가 넣어줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>request: ProductCreate</code>
+            <span>
+              <strong>요청 본문</strong>입니다. 타입을 적으면 FastAPI 가 그 형식으로 바꿔서 넣어줍니다.
+              항목이 빠졌거나 타입이 다르면 <strong>422 를 자동으로</strong> 돌려줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>limit: int = 20</code>
+            <span>
+              타입이 <code>int</code> 라 FastAPI 가 <strong>글자를 숫자로</strong> 바꿔줍니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>나머지 줄들</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>router = APIRouter()</code>
+            <span>
+              엔드포인트를 <strong>모아두는 상자</strong>입니다.
+              파일마다 하나씩 만들고 <code>main.py</code> 가 앱에 붙입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>response_model=list[ProductOut]</code>
+            <span>
+              <strong>돌려줄 모양</strong>을 지정합니다.
+              모델 객체를 이 형식으로 걸러서 JSON 으로 바꿉니다.
+              여기 없는 항목(<code>detail</code>)은 자동으로 빠집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>status_code=201</code>
+            <span>
+              200 이 아니라 <strong>201 Created</strong>. "새로 만들었다" 는 뜻입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>raise HTTPException(409, ...)</code>
+            <span>
+              <strong>409 Conflict</strong> — "이미 있어서 충돌한다".
+              <code>raise</code> 하면 그 자리에서 함수가 끝나고 FastAPI 가 응답을 만듭니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>목록을 먼저, 상세를 뒤에</code>
+            <span>
+              FastAPI 는 <strong>위에서부터 맞는 것을 찾습니다.</strong>
+              순서가 바뀌면 <code>/products</code> 요청이 상세 조회로 샐 수 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/api/customers.py</b> · 전체 · {{LINES:app/api/customers.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/api/customers.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>raise HTTPException(404, ...)</code>
+            <span>
+              <strong>404 Not Found</strong> — "그런 게 없다".
+              Service 가 <code>None</code> 으로 알려준 것을 API 가 상태 코드로 옮깁니다.
+              <strong>Service 는 HTTP 를 모르고, API 는 DB 를 모릅니다.</strong>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="8" data-title="ask.py · recommend.py">
+        <div class="eyebrow">8 · app/api</div>
+        <h1>ask.py — 여기만 Depends 를 안 씁니다</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/api/ask.py</b> · 전체 · {{LINES:app/api/ask.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/api/ask.py}}</pre>
+        </div>
+
+        <h2>두 엔드포인트가 같은 그래프를 씁니다</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>POST /ask</code>
+            <span>다 끝날 때까지 기다렸다가 <strong>한 번에</strong> 받습니다.</span>
+          </div>
+          <div class="ln">
+            <code>POST /ask/stream</code>
+            <span>단계가 끝날 때마다 <strong>하나씩</strong> 받습니다.</span>
+          </div>
+          <div class="ln">
+            <code>[turn.model_dump() for turn in request.history]</code>
+            <span>
+              <code>Turn</code> 객체 목록을 <strong>딕셔너리 목록</strong>으로 바꿉니다.
+              아래 층이 Pydantic 을 몰라도 되게 하려는 것입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>스트리밍 쪽 줄별로</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>def events():</code>
+            <span>
+              <strong>함수 안의 함수</strong>입니다. 바깥 함수의 <code>request</code> 와
+              <code>history</code> 를 그대로 볼 수 있어서 인자로 넘길 필요가 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>db = SessionLocal()</code>
+            <span>
+              <strong>여기서만 Depends 를 안 씁니다.</strong>
+              <code>Depends</code> 로 받은 세션은 <strong>응답을 내보내기 전에 닫히는데</strong>,
+              스트리밍은 내보내는 동안에도 DB 가 필요합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>try / finally</code>
+            <span>
+              중간에 브라우저가 연결을 끊어도 <strong>세션이 반드시 닫히게</strong> 합니다.
+              <code>get_db</code> 가 하던 일을 손으로 하는 것입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"data: " + json + "\n\n"</code>
+            <span>
+              SSE 형식입니다. <code>data: </code> 로 시작하고
+              <strong>빈 줄 하나</strong>로 한 덩어리가 끝납니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>ensure_ascii=False</code>
+            <span>한글을 코드가 아니라 <strong>글자 그대로</strong> 보냅니다.</span>
+          </div>
+          <div class="ln">
+            <code>StreamingResponse(events(), ...)</code>
+            <span>
+              <strong>다 만들어지기 전에</strong> 조금씩 내보내는 응답입니다.
+              <code>media_type</code> 이 브라우저에게 "연결을 끊지 말라" 고 알려줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>response_model 이 없습니다</code>
+            <span>
+              스트리밍은 <strong>형식을 미리 정할 수 없습니다.</strong>
+              세 종류가 섞여 나오기 때문입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/api/recommend.py</b> · 전체 · {{LINES:app/api/recommend.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/api/recommend.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>POST 인데 본문이 없습니다</code>
+            <span>
+              주소에 박힌 번호 하나면 됩니다. 그래도 <code>GET</code> 이 아닌 이유는
+              <strong>AI 를 부르고 돈이 드는 요청</strong>이라, 브라우저가 함부로 미리 불러오면
+              안 되기 때문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>두 함수가 모양이 같습니다</code>
+            <span>
+              Service 를 부르고, <code>None</code> 이면 404, 아니면 그대로 돌려줍니다.
+              <strong>안이 아무리 달라도 API 층은 이 모양</strong>입니다.
+            </span>
+          </div>
+        </div>
+      </section>

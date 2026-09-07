@@ -1,0 +1,1458 @@
+<title>화장품 AI 관리자 코드 투어</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+/>
+
+<style>
+  :root {
+    --ground: #f4f6f8;
+    --surface: #ffffff;
+    --raise: #eef2f6;
+    --ink: #151b22;
+    --muted: #67727e;
+    --faint: #96a0ab;
+    --line: #dbe2e9;
+    --accent: #1d5c9a;
+    --accent-soft: #e4eef7;
+    --tool: #2f6faf;
+    --rag: #3e8556;
+    --warn: #a8562a;
+    --code-bg: #0f151b;
+    --code-ink: #dee6ee;
+    --code-dim: #7d8b9a;
+    --code-str: #9ed6a8;
+    --shadow: 0 1px 2px rgba(21, 27, 34, 0.06), 0 8px 24px rgba(21, 27, 34, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101519;
+      --surface: #171e25;
+      --raise: #1e262e;
+      --ink: #e4eaf0;
+      --muted: #98a4b0;
+      --faint: #6d7883;
+      --line: #29323b;
+      --accent: #6ba6e0;
+      --accent-soft: #1b2c3d;
+      --tool: #6ba6e0;
+      --rag: #74bb8b;
+      --warn: #d99765;
+      --code-bg: #0b1015;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #101519;
+    --surface: #171e25;
+    --raise: #1e262e;
+    --ink: #e4eaf0;
+    --muted: #98a4b0;
+    --faint: #6d7883;
+    --line: #29323b;
+    --accent: #6ba6e0;
+    --accent-soft: #1b2c3d;
+    --tool: #6ba6e0;
+    --rag: #74bb8b;
+    --warn: #d99765;
+    --code-bg: #0b1015;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", -apple-system, "Malgun Gothic", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 236px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  .rail {
+    border-right: 1px solid var(--line);
+    background: var(--surface);
+    padding: 22px 0 40px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .rail-head {
+    padding: 0 20px 16px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+  }
+
+  .rail-day {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .rail-title {
+    margin: 4px 0 0;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .rail-sub {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .rail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 0 10px;
+  }
+
+  .rail-item {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 8px;
+    align-items: baseline;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 7px;
+    background: none;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .rail-item:hover {
+    background: var(--raise);
+    color: var(--ink);
+  }
+
+  .rail-item[aria-current="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .rail-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--faint);
+  }
+
+  .rail-item[aria-current="true"] .rail-num {
+    color: var(--accent);
+  }
+
+  .stage-area {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 40px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .crumb {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    min-width: 0;
+  }
+
+  .crumb b {
+    color: var(--ink);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .counter {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--faint);
+    white-space: nowrap;
+  }
+
+  .progress {
+    height: 2px;
+    background: var(--line);
+  }
+
+  .progress span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.18s ease;
+  }
+
+  main {
+    flex: 1;
+    padding: 40px 40px 24px;
+  }
+
+  .slide {
+    display: none;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .slide.on {
+    display: block;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    margin: 0 0 14px;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  h2 {
+    margin: 30px 0 10px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .lead {
+    font-size: 16.5px;
+    line-height: 1.8;
+    margin: 0 0 18px;
+    max-width: 64ch;
+  }
+
+  p {
+    margin: 0 0 14px;
+    max-width: 68ch;
+  }
+
+  .dim {
+    color: var(--muted);
+  }
+
+  code.inl {
+    font-family: "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+    font-size: 0.9em;
+    background: var(--raise);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  .file {
+    margin: 18px 0 6px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+  }
+
+  .file-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 14px;
+    background: var(--code-bg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .file-name {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--code-dim);
+  }
+
+  .file-name b {
+    color: var(--code-ink);
+    font-weight: 500;
+  }
+
+  .copy {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--code-dim);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 3px 11px;
+    cursor: pointer;
+  }
+
+  .copy:hover {
+    color: var(--code-ink);
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .copy.done {
+    color: #9ed6a8;
+    border-color: #9ed6a8;
+  }
+
+  pre {
+    margin: 0;
+    padding: 16px 18px;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font-family: "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+    font-size: 13px;
+    line-height: 1.72;
+    overflow-x: auto;
+    tab-size: 4;
+  }
+
+  pre.out {
+    color: var(--code-str);
+  }
+
+  details.full {
+    margin: 18px 0 6px;
+  }
+
+  details.full > summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 12px 16px;
+    border: 1px solid var(--accent);
+    border-radius: 9px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    list-style: none;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+
+  details.full > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* 접혀 있을 때 +, 펼치면 - */
+  details.full > summary::before {
+    content: "+";
+    flex-shrink: 0;
+    width: 21px;
+    height: 21px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--accent);
+    color: var(--surface);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  details.full[open] > summary::before {
+    content: "−";
+  }
+
+  details.full > summary:hover {
+    background: var(--accent);
+    color: var(--surface);
+  }
+
+  details.full > summary:hover::before {
+    background: var(--surface);
+    color: var(--accent);
+  }
+
+  details.full > summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* 펼치면 버튼과 코드 상자가 한 덩어리로 보이게 */
+  details.full[open] > summary {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  details.full[open] > .file {
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  .sig {
+    border-left: 2px solid var(--accent);
+    padding: 2px 0 2px 16px;
+    margin: 22px 0;
+  }
+
+  .sig-name {
+    font-family: "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .sig-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 14px 0 6px;
+  }
+
+  .arg {
+    display: grid;
+    grid-template-columns: 148px 62px minmax(0, 1fr);
+    gap: 4px 12px;
+    padding: 6px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+
+  .arg:first-of-type {
+    border-top: none;
+  }
+
+  .arg .n {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+  }
+
+  .arg .t {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--faint);
+    font-size: 12px;
+  }
+
+  .arg .d {
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  .arg .d em {
+    display: block;
+    font-style: normal;
+    font-family: "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 2px;
+    word-break: break-all;
+  }
+
+  .lines {
+    display: grid;
+    margin: 8px 0 0;
+  }
+
+  .ln {
+    display: grid;
+    grid-template-columns: minmax(180px, 34%) minmax(0, 1fr);
+    gap: 4px 16px;
+    padding: 7px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+
+  .ln:first-child {
+    border-top: none;
+  }
+
+  .ln code {
+    font-family: "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+    font-size: 12.5px;
+    word-break: break-all;
+  }
+
+  .ln span {
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  @media (max-width: 760px) {
+    .arg,
+    .ln {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .note {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 20px 0;
+  }
+
+  .note.warn {
+    border-left-color: var(--warn);
+  }
+
+  .note-t {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .note p:last-child {
+    margin-bottom: 0;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    padding: 14px 16px;
+  }
+
+  .card h3 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .card p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .flow {
+    font-family: "IBM Plex Mono", "IBM Plex Sans KR", monospace;
+    font-size: 13px;
+    line-height: 2;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 16px 18px;
+    margin: 20px 0;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .pill {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--raise);
+    color: var(--muted);
+  }
+
+  .pill.tool {
+    background: color-mix(in srgb, var(--tool) 14%, transparent);
+    color: var(--tool);
+  }
+
+  .pill.rag {
+    background: color-mix(in srgb, var(--rag) 14%, transparent);
+    color: var(--rag);
+  }
+
+  ul.plain {
+    margin: 0 0 14px;
+    padding-left: 18px;
+    max-width: 68ch;
+  }
+
+  ul.plain li {
+    margin-bottom: 6px;
+  }
+
+  .navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 40px 28px;
+    max-width: 940px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13.5px;
+    padding: 9px 16px;
+    cursor: pointer;
+    min-width: 0;
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .nav-btn .lbl {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 260px;
+  }
+
+  .keyhint {
+    font-size: 12px;
+    color: var(--faint);
+  }
+
+  kbd {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--muted);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .shell {
+      grid-template-columns: 1fr;
+    }
+    .rail {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .rail-list {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    .rail-item {
+      width: auto;
+    }
+    main,
+    .topbar,
+    .navbar {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+  }
+
+  /* ══ 좌: 코드 / 우: 설명 ══════════════════════════ */
+
+  .slide {
+    max-width: 1240px;
+  }
+
+  .slide > p,
+  .slide > .lead,
+  .slide > ul.plain {
+    max-width: 70ch;
+  }
+
+  .slide > .sig,
+  .slide > .lines,
+  .slide > .note {
+    max-width: 920px;
+  }
+
+  .navbar {
+    max-width: 1320px;
+  }
+
+  .pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+    margin: 20px 0 6px;
+  }
+
+  /* 설명을 읽는 동안 코드가 따라옵니다. 길면 코드 칸 안에서만 스크롤됩니다. */
+  .pair-code {
+    position: sticky;
+    top: 64px;
+    min-width: 0;
+    max-height: calc(100vh - 88px);
+    display: flex;
+  }
+
+  .pair-code .file {
+    margin: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .pair-code .file-bar {
+    flex-shrink: 0;
+  }
+
+  /* flex 안에서는 min-height 를 0 으로 둬야 내용보다 작게 줄어듭니다 */
+  .pair-code .file pre {
+    overflow: auto;
+    min-height: 0;
+  }
+
+  .pair-note {
+    min-width: 0;
+  }
+
+  .pair-note > :first-child {
+    margin-top: 0;
+  }
+
+  .pair-note .sig {
+    margin: 0 0 18px;
+    max-width: none;
+  }
+
+  .pair-note .lines {
+    max-width: none;
+  }
+
+  .pair-note .arg {
+    grid-template-columns: 126px 54px minmax(0, 1fr);
+  }
+
+  .pair-note .ln {
+    grid-template-columns: minmax(150px, 38%) minmax(0, 1fr);
+  }
+
+  @media (max-width: 1100px) {
+    .pair {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+    }
+    .pair-code {
+      position: static;
+      max-height: none;
+    }
+    .pair-code .file {
+      margin: 18px 0 6px;
+    }
+    .pair-note .arg {
+      grid-template-columns: 148px 62px minmax(0, 1fr);
+    }
+    .pair-note .ln {
+      grid-template-columns: minmax(180px, 34%) minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 760px) {
+    .pair-note .arg,
+    .pair-note .ln {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ══ VSCode Dark+ ════════════════════════════════ */
+
+  .file {
+    border-color: #2a2a2a;
+  }
+
+  .file-bar {
+    background: #252526;
+    border-bottom: 1px solid #333333;
+  }
+
+  .file-name {
+    color: #858585;
+  }
+
+  .file-name b {
+    color: #cccccc;
+  }
+
+  .copy {
+    border-color: #3c3c3c;
+    color: #9a9a9a;
+  }
+
+  .copy:hover {
+    color: #e7e7e7;
+    border-color: #6a6a6a;
+  }
+
+  .copy.done {
+    color: #4ec9b0;
+    border-color: #4ec9b0;
+  }
+
+  pre {
+    background: #1e1e1e;
+    color: #d4d4d4;
+  }
+
+  /* 터미널 출력은 소스와 구분되게 초록 하나로 둡니다 */
+  pre.out {
+    background: #1e1e1e;
+    color: #9ed6a8;
+  }
+
+  .hljs-comment,
+  .hljs-quote {
+    color: #6a9955;
+  }
+
+  .hljs-string,
+  .hljs-regexp,
+  .hljs-symbol {
+    color: #ce9178;
+  }
+
+  .hljs-number {
+    color: #b5cea8;
+  }
+
+  .hljs-keyword,
+  .hljs-literal,
+  .hljs-type,
+  .hljs-selector-tag,
+  .hljs-name,
+  .hljs-tag {
+    color: #569cd6;
+  }
+
+  /* if / for / return / import 처럼 흐름을 바꾸는 것만 보라색입니다 */
+  .hljs-keyword.kw-control {
+    color: #c586c0;
+  }
+
+  .hljs-built_in,
+  .hljs-title,
+  .hljs-title.function_,
+  .hljs-section,
+  .hljs-meta {
+    color: #dcdcaa;
+  }
+
+  .hljs-title.class_,
+  .hljs-class .hljs-title {
+    color: #4ec9b0;
+  }
+
+  .hljs-params,
+  .hljs-variable,
+  .hljs-attr,
+  .hljs-property,
+  .hljs-attribute,
+  .hljs-template-variable {
+    color: #9cdcfe;
+  }
+
+  .hljs-punctuation,
+  .hljs-operator {
+    color: #d4d4d4;
+  }
+
+  /* ══ 남는 가로 폭을 코드칸에 몰아줍니다 ═══════════ */
+
+  /* 슬라이드는 화면을 다 씁니다. 대신 글줄만 읽기 좋은 폭으로 잡아둡니다. */
+  .slide {
+    max-width: none;
+  }
+
+  .slide > h1 {
+    max-width: 900px;
+  }
+
+  .slide > .cards {
+    max-width: 1180px;
+  }
+
+  main {
+    padding: 40px 32px 24px;
+  }
+
+  .topbar,
+  .navbar {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+
+  .navbar {
+    max-width: none;
+  }
+
+  /* 설명칸은 폭을 고정하고, 남는 곳은 전부 코드가 가져갑니다.
+     그래야 코드에 가로 스크롤이 거의 생기지 않습니다. */
+  .pair {
+    /* 넓으면 설명칸을 520px 로 묶어두고 나머지는 코드가 다 씁니다.
+       화면이 좁아지면 설명칸도 같이 줄어서 코드가 너무 눌리지 않습니다. */
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 40%, 520px);
+    gap: 22px;
+  }
+
+  @media (max-width: 1200px) {
+    .pair {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+    }
+    .pair-code {
+      position: static;
+      max-height: none;
+    }
+    .pair-code .file {
+      margin: 18px 0 6px;
+    }
+    .pair-note .arg {
+      grid-template-columns: 148px 62px minmax(0, 1fr);
+    }
+    .pair-note .ln {
+      grid-template-columns: minmax(180px, 34%) minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 900px) {
+    main,
+    .topbar,
+    .navbar {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+  }
+
+  /* ══ 한 칸으로 나오는 블록은 오른쪽 끝을 맞춥니다 ══ */
+
+  .slide > .file,
+  .slide > .flow,
+  .slide > .sig,
+  .slide > .lines,
+  .slide > .note,
+  .slide > .cards,
+  .slide > details.full {
+    max-width: 1080px;
+  }
+
+  /* 2단은 한 칸짜리보다 넓게 씁니다. 대신 아주 넓은 화면에서 늘어지지 않게 묶어둡니다. */
+  .pair {
+    max-width: 1600px;
+    grid-template-columns: minmax(0, 1fr) clamp(380px, 46%, 630px);
+  }
+
+  /* ══ 모든 블록의 바깥 폭을 하나로 ═════════════════ */
+
+  .slide {
+    max-width: 1360px;
+  }
+
+  /* 블록은 슬라이드 폭을 그대로 씁니다. 그래야 좌우 끝이 어긋나지 않습니다. */
+  .slide > .file,
+  .slide > .flow,
+  .slide > .sig,
+  .slide > .lines,
+  .slide > .note,
+  .slide > .cards,
+  .slide > details.full,
+  .pair {
+    max-width: none;
+  }
+
+  /* 글줄만 읽기 좋은 폭으로 따로 잡아둡니다 */
+  .slide > p,
+  .slide > .lead,
+  .slide > ul.plain {
+    max-width: 72ch;
+  }
+
+  .slide > h1 {
+    max-width: 900px;
+  }
+
+  .pair {
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 40%, 545px);
+  }
+
+  /* 파일 이름이 길어도 코드칸을 밀어내지 않게 합니다 */
+  .file-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .copy {
+    flex-shrink: 0;
+  }
+
+  /* ══ 태블릿 ══════════════════════════════════════ */
+
+  @media (max-width: 1200px) {
+    .slide > p,
+    .slide > .lead,
+    .slide > ul.plain {
+      max-width: none;
+    }
+  }
+
+  /* ══ 모바일 ══════════════════════════════════════ */
+
+  @media (max-width: 900px) {
+    .rail {
+      padding: 12px 0 8px;
+    }
+
+    .rail-head {
+      padding: 0 16px 10px;
+      margin-bottom: 8px;
+    }
+
+    .rail-title {
+      font-size: 15px;
+    }
+
+    /* 단계가 스물 몇 개라 세로로 쌓으면 화면을 다 잡아먹습니다.
+       옆으로 미는 띠로 바꿉니다. */
+    .rail-list {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 6px;
+      padding: 2px 16px 6px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .rail-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .rail-item {
+      flex: 0 0 auto;
+      width: auto;
+      grid-template-columns: auto auto;
+      gap: 5px;
+      padding: 7px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 12.5px;
+      white-space: nowrap;
+    }
+
+    .rail-item[aria-current="true"] {
+      border-color: var(--accent);
+    }
+
+    main,
+    .topbar,
+    .navbar {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    main {
+      padding-top: 22px;
+      padding-bottom: 14px;
+    }
+
+    .topbar {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    .crumb {
+      font-size: 12px;
+      gap: 7px;
+    }
+
+    /* 좁은 화면에서는 부제목까지 넣을 자리가 없습니다 */
+    #crumb-title {
+      display: none;
+    }
+
+    h1 {
+      font-size: 23px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 15px;
+      margin-top: 24px;
+    }
+
+    .lead {
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    body {
+      font-size: 14.5px;
+    }
+
+    pre {
+      font-size: 12px;
+      line-height: 1.68;
+      padding: 13px 14px;
+    }
+
+    .file-bar {
+      padding: 8px 12px;
+    }
+
+    .file-name {
+      font-size: 11.5px;
+    }
+
+    .flow {
+      font-size: 12px;
+      padding: 13px 14px;
+    }
+
+    .note {
+      padding: 12px 14px;
+    }
+
+    .arg .d em {
+      word-break: break-word;
+    }
+
+    .keyhint {
+      display: none;
+    }
+
+    .nav-btn .lbl {
+      max-width: 40vw;
+    }
+  }
+
+  @media (max-width: 760px) {
+    /* 한 줄로 접히면 이름과 설명이 붙어 보이므로 사이를 띄웁니다 */
+    .arg,
+    .ln {
+      padding: 9px 0;
+    }
+
+    .arg .d,
+    .ln span {
+      padding-left: 2px;
+    }
+
+    .ln code {
+      color: var(--accent);
+    }
+  }
+
+  /* ══ 모바일 다듬기 ═══════════════════════════════ */
+
+  @media (max-width: 900px) {
+    /* 긴 이름이 줄을 밀어내지 않도록 */
+    code.inl,
+    .card p,
+    .note p,
+    .arg .d,
+    .ln span {
+      overflow-wrap: anywhere;
+    }
+
+    /* 이전/다음은 그대로 둡니다. 화면에 붙이지만 않습니다 —
+       고정하면 좁은 화면에서 세로 공간을 잡아먹습니다. */
+    .navbar {
+      gap: 10px;
+      padding: 12px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .nav-btn {
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 46px;
+      justify-content: center;
+      padding: 8px 12px;
+    }
+
+    .nav-btn .lbl {
+      max-width: none;
+      font-size: 12.5px;
+    }
+
+    .flow {
+      font-size: 11.5px;
+      line-height: 1.9;
+      padding: 12px 13px;
+    }
+
+    pre {
+      font-size: 11.5px;
+    }
+
+    .sig-name {
+      font-size: 13px;
+      word-break: break-all;
+    }
+
+    .rail-head {
+      padding-bottom: 8px;
+    }
+
+    details.full > summary {
+      padding: 11px 13px;
+    }
+  }
+
+
+  @media (max-width: 760px) {
+    /* 한 줄로 접힐 때 비어 있는 타입 칸이 빈 줄로 남습니다 */
+    .arg .t:empty,
+    .arg .n:empty {
+      display: none;
+    }
+
+    .arg {
+      gap: 2px;
+      padding: 10px 0;
+    }
+
+    .arg .n {
+      font-weight: 600;
+    }
+
+    .arg .t {
+      font-size: 11.5px;
+    }
+
+    .ln {
+      gap: 3px;
+      padding: 10px 0;
+    }
+
+    .cards {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+  }
+
+  /* ══ 모바일 마무리 — 반드시 맨 뒤에 둡니다 ═══════
+     앞쪽 @media (max-width: 1200px) 규칙이 나중에 나오면서
+     좁은 화면의 1단 설정을 덮어쓰고 있었습니다. 여기서 되돌립니다. */
+
+  @media (max-width: 900px) {
+    .arg,
+    .ln,
+    .pair-note .arg,
+    .pair-note .ln {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* 좁은 화면에서는 위쪽 바도 고정하지 않습니다. 세로 공간이 아깝습니다. */
+    .topbar {
+      position: static;
+    }
+
+    /* 2단(코드 | 설명)을 위아래로 폅니다.
+       앞쪽의 조건 없는 .pair 규칙이 이 아래 미디어 쿼리를 덮고 있어서
+       휴대폰에서도 두 칸으로 남아 있었습니다. 코드 칸이 0px 로 눌렸습니다. */
+    .pair {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      max-width: none;
+    }
+
+    .pair-code {
+      display: block;
+      position: static;
+      max-height: none;
+      min-width: 0;
+    }
+
+    .pair-code .file {
+      margin: 0 0 6px;
+    }
+
+    .pair-note {
+      margin-top: 10px;
+    }
+
+    /* ── 화면보다 넓어지는 것을 막습니다 ──────────────
+       .shell 의 칸이 `1fr` 이면 최소 폭이 "안에 든 것 중 가장 넓은 것" 이 됩니다.
+       그래서 코드 한 줄이 길면 칸 자체가 화면보다 넓어지고,
+       상단 바부터 본문까지 통째로 밀려 잘렸습니다.
+       minmax(0, 1fr) 로 바꾸면 화면 폭 아래로 줄어들 수 있습니다. */
+    .shell {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .shell,
+    .stage-area,
+    .topbar,
+    main,
+    .slide,
+    .rail,
+    .navbar {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    /* 넘치는 것은 각자 자기 안에서 처리합니다 */
+    .file,
+    .note,
+    .sig,
+    .lines,
+    .cards,
+    .ln,
+    .arg,
+    details.full {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    /* 긴 낱말이 줄을 밀어내지 않게 */
+    p,
+    li,
+    h1,
+    h2,
+    .lead,
+    .card p,
+    .note p,
+    .arg .d,
+    .arg .n,
+    .ln span,
+    .ln code,
+    .sig-name,
+    code.inl,
+    .arg .d em,
+    .file-name,
+    .nav-btn .lbl {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    /* 파일 이름표는 말줄임 대신 두 줄까지 보여줍니다 */
+    .file-name {
+      white-space: normal;
+      overflow: visible;
+      line-height: 1.45;
+    }
+
+    .file-bar {
+      align-items: flex-start;
+    }
+  }
+
+  /* ══ 코드 박스는 언제나 자기 안에서만 스크롤합니다 ══ */
+
+  .file,
+  .pair-code .file,
+  .pair-note {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  pre {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* 좌우로 밀 수 있다는 것이 보이도록 막대를 항상 띄웁니다 */
+  pre::-webkit-scrollbar {
+    height: 9px;
+  }
+
+  pre::-webkit-scrollbar-track {
+    background: #2b2b2b;
+  }
+
+  pre::-webkit-scrollbar-thumb {
+    background: #5a5a5a;
+    border-radius: 5px;
+  }
+
+  pre::-webkit-scrollbar-thumb:hover {
+    background: #767676;
+  }
+
+  pre {
+    scrollbar-color: #5a5a5a #2b2b2b;
+    scrollbar-width: thin;
+  }
+</style>
+
+<div class="shell">
+  <nav class="rail">
+    <div class="rail-head">
+      <div class="rail-day">코드 투어</div>
+      <p class="rail-title">화장품 AI 관리자</p>
+      <p class="rail-sub">완성본을 폴더 순서대로</p>
+    </div>
+    <div class="rail-list" id="rail"></div>
+  </nav>
+
+  <div class="stage-area">
+    <div class="topbar">
+      <div class="crumb"><b id="crumb-stage"></b><span id="crumb-title"></span></div>
+      <div class="counter" id="counter"></div>
+    </div>
+    <div class="progress"><span id="bar" style="width: 0%"></span></div>
+
+    <main id="deck">

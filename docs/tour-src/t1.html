@@ -1,0 +1,735 @@
+      <section class="slide" data-stage="2" data-title="load_data.py">
+        <div class="eyebrow">2 · pipeline</div>
+        <h1>load_data.py — CSV 를 SQLite 로 옮깁니다</h1>
+
+        <p>
+          CSV 5개를 읽어 <strong>테이블 4개</strong>에 넣습니다.
+          <code class="inl">products.csv</code> 와 <code class="inl">product_details.csv</code> 는
+          <strong>합쳐서 한 테이블</strong>이 됩니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:pipeline/load_data.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>read_csv(name)</code><span>data/ 안의 CSV 를 딕셔너리 목록으로</span></div>
+          <div class="ln"><code>make_customer(row)</code><span>한 줄 → <code>Customer</code> 객체</span></div>
+          <div class="ln"><code>make_product(row, detail_of)</code><span>한 줄 + 상세 → <code>Product</code> 객체</span></div>
+          <div class="ln"><code>make_purchase(row)</code><span>한 줄 → <code>Purchase</code> 객체</span></div>
+          <div class="ln"><code>make_review(row)</code><span>한 줄 → <code>Review</code> 객체</span></div>
+          <div class="ln"><code>print_result(db)</code><span>몇 행 들어갔는지 확인용 출력</span></div>
+          <div class="ln"><code>main()</code><span>읽고 → 테이블 만들고 → 넣는다</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>pipeline/load_data.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:pipeline/load_data.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from datetime import date</code>
+            <span>글자를 <strong>날짜 값</strong>으로 바꾸려고 씁니다.</span>
+          </div>
+          <div class="ln">
+            <code>from app.db import Base, SessionLocal, engine</code>
+            <span>
+              <strong>여기서 처음으로 app/ 을 부릅니다.</strong>
+              <code>split_reviews</code> 와 달리 DB 가 필요합니다.
+              그래서 실행할 때 <code>python -m pipeline.load_data</code> 처럼
+              <code>-m</code> 을 붙여야 <code>app</code> 을 찾습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>모델 4개를 각각 가져옵니다</code>
+            <span>
+              <code>make_*</code> 함수가 객체를 만들어야 해서 클래스가 필요합니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>함수 정의 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>Customer(customer_id=..., name=...)</code>
+            <span>
+              모델 클래스를 <strong>함수처럼 부르면</strong> 객체 하나가 만들어집니다.
+              괄호 안은 <code>컬럼이름=값</code> 입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>int(row["age"])</code>
+            <span>
+              <strong>글자를 정수로 바꿉니다.</strong> CSV 에서는 <code>"32"</code> 로 읽히는데
+              모델에는 <code>Integer</code> 라고 적어뒀습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>date.fromisoformat(...)</code>
+            <span>
+              <code>"2025-03-14"</code> 를 <strong>날짜 값</strong>으로 바꿉니다.
+              이래야 DB 가 날짜로 정렬하고 비교합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>detail=detail_of[row["product_id"]]</code>
+            <span>
+              <strong>다른 CSV 의 값을 끌어옵니다.</strong>
+              그래서 <code>make_product</code> 만 인자가 둘입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>여기가 타입이 생기는 지점</code>
+            <span>
+              CSV 에는 타입이 없어 전부 글자였습니다.
+              <strong>DB 에 넣는 이 순간부터 숫자는 숫자, 날짜는 날짜가 됩니다.</strong>
+            </span>
+          </div>
+        </div>
+
+        <h2>호출 부분 — main</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>detail_of = {...}</code>
+            <span>
+              <strong>상품번호 → 상세문서 사전</strong>을 미리 만듭니다.
+              상품 200개마다 CSV 를 처음부터 뒤지면 느립니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Base.metadata.drop_all(engine)</code>
+            <span>
+              <strong>테이블을 전부 지웁니다.</strong> 여러 번 실행해도
+              데이터가 두 배로 쌓이지 않게 하려는 것입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Base.metadata.create_all(engine)</code>
+            <span>
+              모델 정의를 보고 <strong>테이블을 만듭니다.</strong>
+              여기서 <code>CREATE TABLE</code> 이 실행됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>db.add_all([...])</code>
+            <span>객체 목록을 <strong>세션에 담습니다.</strong> 아직 저장되지 않았습니다.</span>
+          </div>
+          <div class="ln">
+            <code>db.commit()</code>
+            <span>
+              <strong>여기서 진짜로 저장됩니다.</strong> 3,500행을 한 번에 씁니다.
+              한 줄씩 commit 하면 훨씬 느립니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>db.close()</code>
+            <span>
+              세션을 닫습니다. 스크립트라서 <code>get_db</code> 없이 직접 열고 닫습니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">파일 둘을 테이블 하나로 합칩니다</div>
+          <p class="dim">
+            <code class="inl">products.csv</code> 와
+            <code class="inl">product_details.csv</code> 는 같은 상품 이야기입니다.
+            나눠 두면 상품을 볼 때마다 두 곳을 봐야 합니다.
+            <strong>정형(<code class="inl">price</code>)과 비정형(<code class="inl">detail</code>)이
+            한 테이블에 같이 있어도 괜찮습니다</strong> — 다루는 방법만 다르게 하면 됩니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="2" data-title="chunk.py">
+        <div class="eyebrow">2 · pipeline</div>
+        <h1>chunk.py — 긴 글을 조각으로 자릅니다</h1>
+
+        <p>
+          상품 상세 200개와 후기 1,500건을 잘라 <code class="inl">chunks</code> 테이블에 넣습니다.
+          <strong>자르는 규칙은 여기 없습니다</strong> —
+          <code class="inl">app/ai/chunker.py</code> 것을 가져다 씁니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:pipeline/chunk.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>print_result(db)</code><span>몇 조각이 나왔는지, P001 이 어떻게 잘렸는지 출력</span></div>
+          <div class="ln"><code>main()</code><span>테이블 비우고 → 자르고 → 넣는다</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>pipeline/chunk.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:pipeline/chunk.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from app.ai.chunker import ...</code>
+            <span>
+              <strong>규칙을 가져다 씁니다.</strong>
+              <code>app/services/product_service.py</code> 도 같은 함수를 부릅니다.
+              한 곳에 두었기 때문에 두 곳의 결과가 어긋나지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Product 와 Review 를 가져옵니다</code>
+            <span>자를 원본을 DB 에서 읽어야 합니다.</span>
+          </div>
+        </div>
+
+        <h2>호출 부분 — main</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>Chunk.__table__.drop(engine, checkfirst=True)</code>
+            <span>
+              <strong>chunks 테이블만</strong> 지웁니다.
+              <code>load_data</code> 의 <code>drop_all</code> 은 전부 지우는데,
+              여기서는 상품·고객을 남겨야 합니다.
+              <code>checkfirst=True</code> 는 "없으면 그냥 넘어가라" 입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>name_of = {...}</code>
+            <span>
+              <strong>상품번호 → 이름 사전.</strong> 후기 1,500건마다 DB 를 다시 찾으면
+              1,500번 질의가 나갑니다. <code>load_data</code> 의 <code>detail_of</code> 와 같은 수법입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>db.add_all(make_product_chunks(product))</code>
+            <span>
+              상품 하나가 <strong>여러 조각</strong>이라 목록을 통째로 담습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>db.add(make_review_chunk(...))</code>
+            <span><strong>후기 하나 = 조각 하나</strong>라 하나만 담습니다.</span>
+          </div>
+          <div class="ln">
+            <code>name_of[review.product_id]</code>
+            <span>
+              후기 객체에는 상품 이름이 없어서 사전에서 꺼내 넘깁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>db.commit()</code>
+            <span>3,060개를 한 번에 기록합니다.</span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">chunks 테이블을 직접 만지는 예외</div>
+          <p class="dim">
+            원칙은 <strong>"chunks 는 <code class="inl">app/ai/vector_store.py</code> 만 만진다"</strong> 입니다.
+            나중에 Supabase 로 옮길 때 고칠 파일을 한 개로 묶어두기 위해서입니다.
+            <code class="inl">pipeline/</code> 만 예외로 두었습니다 — 준비 스크립트이기 때문입니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="2" data-title="embed.py · run_all.py">
+        <div class="eyebrow">2 · pipeline</div>
+        <h1>embed.py — 조각을 벡터로 바꿉니다</h1>
+
+        <p>
+          <strong>벡터가 없는 청크만</strong> 처리합니다.
+          그래서 중간에 끊겨도 다시 실행하면 남은 것부터 이어서 합니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:pipeline/embed.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>BATCH_SIZE = 100</code><span>한 번에 보낼 청크 수</span></div>
+          <div class="ln"><code>embed_batch(db, chunks)</code><span>100개를 임베딩해서 저장</span></div>
+          <div class="ln"><code>main()</code><span>할 일을 찾아 100개씩 나눠 돌립니다</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>pipeline/embed.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:pipeline/embed.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from app.ai import vector_store</code>
+            <span>
+              <strong>chunks 테이블은 이 파일을 통해서만</strong> 읽고 씁니다.
+              <code>chunk.py</code> 와 달리 여기서는 규칙을 지킵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>from app.ai.embedder import DIMENSION, MODEL, embed_texts</code>
+            <span>
+              함수뿐 아니라 <strong>상수 둘도</strong> 가져옵니다. 출력에 모델 이름과 차원을 찍으려는 것입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>import time</code>
+            <span>몇 초 걸렸는지 재려고 씁니다.</span>
+          </div>
+        </div>
+
+        <h2>함수 정의 · 호출 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>[chunk.content for chunk in chunks]</code>
+            <span>
+              Chunk 객체에서 <strong>글자만</strong> 뽑습니다.
+              임베딩 API 는 객체를 모르고 글자만 받습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>if not todo:</code>
+            <span>
+              벡터 없는 청크가 없으면 <strong>바로 끝냅니다.</strong>
+              두 번 돌려도 돈이 또 나가지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>range(0, len(todo), BATCH_SIZE)</code>
+            <span>
+              <code>0, 100, 200, ...</code> 을 만듭니다.
+              세 번째 인자가 <strong>몇씩 건너뛸지</strong>입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>todo[start : start + 100]</code>
+            <span>
+              100개씩 잘라냅니다. 마지막은 100개가 안 돼도
+              <strong>파이썬이 남은 만큼만</strong> 줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"#" * (done * 30 // len(todo))</code>
+            <span>
+              진행 막대. 전체를 30칸으로 보고 몇 칸인지 계산합니다.
+              <code>//</code> 는 몫만 취하는 나눗셈입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>print(..., end="")</code>
+            <span>
+              줄바꿈을 안 합니다. <code>\r</code> 로 <strong>줄 맨 앞으로 돌아가</strong>
+              같은 줄에 덮어씁니다. 그래서 막대가 한 줄에서 자랍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>json.loads(sample.embedding)</code>
+            <span>
+              마지막에 벡터 하나를 꺼내 <strong>앞 5개를 보여줍니다.</strong>
+              "글이 숫자가 된다" 를 눈으로 확인하는 자리입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>run_all.py — 넷을 순서대로</h2>
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>pipeline/run_all.py</b> · 전체 · {{LINES:pipeline/run_all.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:pipeline/run_all.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>from pipeline import chunk, embed, ...</code>
+            <span>
+              <strong>모듈 자체를 가져옵니다.</strong> 함수가 아니라 파일을 통째로요.
+            </span>
+          </div>
+          <div class="ln">
+            <code>def run(step_name, step)</code>
+            <span>
+              <code>step</code> 인자로 <strong>모듈을 받습니다.</strong>
+              그리고 <code>step.main()</code> 을 부릅니다.
+              네 스크립트가 전부 <code>main()</code> 이라는 <strong>같은 이름</strong>을 쓰기 때문에 가능합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"=" * 60</code>
+            <span>구분선. 네 단계의 출력이 섞이지 않게 갈라줍니다.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="3" data-title="폴더 개요">
+        <div class="eyebrow">3 · app (뿌리 3개)</div>
+        <h1>거의 모든 파일이 이 셋을 가져다 씁니다</h1>
+
+        <div class="lines">
+          <div class="ln">
+            <code>config.py</code>
+            <span><code>.env</code> 를 읽습니다. <strong>DB 주소를 아는 유일한 파일</strong>입니다.</span>
+          </div>
+          <div class="ln">
+            <code>db.py</code>
+            <span>DB 와 연결합니다. <code>engine · SessionLocal · Base · get_db</code> 넷을 만듭니다.</span>
+          </div>
+          <div class="ln">
+            <code>main.py</code>
+            <span>FastAPI 앱을 만들고 라우터와 화면을 붙입니다. <strong>실행의 시작점</strong>입니다.</span>
+          </div>
+        </div>
+
+        <div class="flow">config.py  ──→  db.py  ──→  models/ · repositories/ · services/ · pipeline/
+   │                 └──→  api/ (get_db)
+   └──→  ai/embedder.py · ai/llm.py   (OPENAI_API_KEY)
+
+main.py    ──→  api/ 라우터 4개 + web/ 정적 파일</div>
+
+        <div class="note">
+          <div class="note-t">이 셋만 서로를 압니다</div>
+          <p class="dim">
+            <code class="inl">db.py</code> 는 <code class="inl">config.py</code> 를 부르고,
+            <code class="inl">main.py</code> 는 <code class="inl">api/</code> 를 부릅니다.
+            <strong>반대 방향은 없습니다</strong> — <code class="inl">config.py</code> 는
+            아무것도 가져오지 않습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="3" data-title="config.py">
+        <div class="eyebrow">3 · app (뿌리 3개)</div>
+        <h1>config.py — 설정값을 읽는 유일한 곳</h1>
+
+        <p>
+          DB 주소나 API 키는 <strong>코드에 적으면 안 됩니다.</strong>
+          사람마다 다르고, 키는 공개되면 안 됩니다.
+          <code class="inl">.env</code> 파일에 적어두고 여기서만 읽습니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:app/config.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>DATABASE_URL</code><span>DB 주소. 없으면 SQLite</span></div>
+          <div class="ln"><code>OPENAI_API_KEY</code><span>OpenAI 키. 없으면 <code>None</code></span></div>
+          <div class="ln"><code>LANGSMITH_TRACING</code><span>추적을 켤지. 키가 없으면 강제로 끕니다</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/config.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/config.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>import os</code>
+            <span>환경 변수를 읽고 쓰는 파이썬 기본 도구입니다.</span>
+          </div>
+          <div class="ln">
+            <code>from dotenv import load_dotenv</code>
+            <span>
+              <code>python-dotenv</code> 패키지입니다.
+              <strong>설정 라이브러리를 안 쓰는 이유</strong>는
+              <code>pydantic-settings</code> 를 쓰면 <code>class Settings(BaseSettings)</code> 처럼
+              <strong>상속</strong>이 필요하기 때문입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>실행 부분 — 함수가 없습니다</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>load_dotenv()</code>
+            <span>
+              <code>.env</code> 파일을 읽어 <strong>환경 변수로 올려놓습니다.</strong>
+              이 줄이 없으면 아래 <code>os.getenv</code> 가 전부 <code>None</code> 을 돌려줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>os.getenv("이름", 기본값)</code>
+            <span>
+              환경 변수를 읽습니다. <strong>없으면 두 번째 인자</strong>를 씁니다.
+              그래서 <code>.env</code> 가 없어도 일단 SQLite 로 돌아갑니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>OPENAI_API_KEY 에는 기본값이 없습니다</code>
+            <span>
+              없으면 <code>None</code> 입니다.
+              <code>embedder.py</code> 와 <code>llm.py</code> 가 이 값이 비었는지 확인하고 안내를 띄웁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>os.environ["LANGSMITH_TRACING"] = "false"</code>
+            <span>
+              <strong>읽는 게 아니라 쓰는 줄입니다.</strong>
+              키 없이 추적만 켜두면 요청마다 401 오류가 화면을 도배해서
+              뭐가 고장 난 줄 알게 됩니다. 그래서 여기서 미리 꺼둡니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>LangSmith 에 넘겨줄 게 없습니다</code>
+            <span>
+              LangSmith 는 환경 변수를 <strong>직접 읽어갑니다.</strong>
+              <code>load_dotenv()</code> 가 올려놓기만 하면 됩니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note warn">
+          <div class="note-t">이 파일이 있는 진짜 이유</div>
+          <p class="dim">
+            <strong>DB 주소를 아는 파일을 하나로 못 박아 두는 것</strong>입니다.
+            다른 파일에서 <code class="inl">os.getenv</code> 를 부르거나
+            <code class="inl">"sqlite:///..."</code> 를 적지 않습니다.
+            그래야 Supabase 로 옮길 때 <code class="inl">.env</code> 의 한 줄만 바꾸면 됩니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="3" data-title="db.py">
+        <div class="eyebrow">3 · app (뿌리 3개)</div>
+        <h1>db.py — 네 가지를 만듭니다</h1>
+
+        <h2>이 파일에 있는 것 — {{LINES:app/db.py}}줄</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>engine</code>
+            <span>실제 DB 와 연결하는 <strong>통로</strong>. 프로그램 전체에 하나면 됩니다.</span>
+          </div>
+          <div class="ln">
+            <code>SessionLocal</code>
+            <span>
+              세션을 만들어 주는 <strong>공장</strong>. 세션 자체가 아닙니다.
+              <code>SessionLocal()</code> 이라고 <strong>불러야</strong> 세션 하나가 나옵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Base</code>
+            <span>
+              모든 테이블 모델이 물려받는 기준.
+              SQLAlchemy 가 <strong>"이걸 상속한 클래스는 테이블"</strong> 이라고 알아봅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>get_db()</code>
+            <span>요청 하나마다 세션을 열고 닫아 줍니다. <code>api/</code> 에서 씁니다.</span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/db.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/db.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>create_engine · sessionmaker · declarative_base</code>
+            <span>SQLAlchemy 가 주는 도구 셋입니다. 우리가 만든 게 아닙니다.</span>
+          </div>
+          <div class="ln">
+            <code>from app.config import DATABASE_URL</code>
+            <span>
+              <strong>주소를 직접 안 읽습니다.</strong> <code>config.py</code> 를 거칩니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>실행 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>DATABASE_URL.startswith("sqlite")</code>
+            <span>
+              주소를 보고 <strong>SQLite 일 때만</strong> 옵션을 붙입니다.
+              PostgreSQL 에는 없는 옵션이라 갈라둡니다.
+              <strong>덕분에 Supabase 로 바꿔도 이 파일은 안 고쳐도 됩니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>check_same_thread: False</code>
+            <span>
+              SQLite 는 원래 <strong>만든 스레드에서만</strong> 쓰게 되어 있습니다.
+              FastAPI 는 여러 스레드로 요청을 처리해서 이걸 꺼야 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>create_engine(DATABASE_URL, ...)</code>
+            <span>
+              주소를 보고 <strong>어떤 DB 인지 알아서 판단</strong>합니다.
+              이 한 줄 덕분에 나중에 주소만 바꾸면 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>sessionmaker(bind=engine)</code>
+            <span>"이 통로를 쓰는 세션을 만들어 주는 공장" 을 만듭니다.</span>
+          </div>
+          <div class="ln">
+            <code>declarative_base()</code>
+            <span>
+              모델들이 물려받을 <strong>부모 클래스를 만들어 줍니다.</strong>
+              이 프로젝트는 부모 클래스를 직접 만들지 않지만,
+              <strong>라이브러리가 그렇게 쓰라고 준 것</strong>이라 그대로 씁니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>get_db — 세 줄이 핵심입니다</h2>
+        <div class="file">
+          <div class="file-bar"><div class="file-name">한 줄씩 뜯어보면</div></div>
+          <pre>    db = SessionLocal()   # ① 세션을 연다
+    try:
+        yield db          # ② 넘겨주고 기다린다  ← 여기서 API 함수가 실행됨
+    finally:
+        db.close()        # ③ 끝나면 반드시 닫는다</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>yield</code>
+            <span>
+              <code>return</code> 과 달리 <strong>함수를 끝내지 않고</strong> 값을 잠시 넘겨줍니다.
+              받아간 쪽의 일이 끝나면 이 줄 다음부터 이어서 실행됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>try / finally</code>
+            <span>
+              <strong>중간에 오류가 나도</strong> <code>finally</code> 는 반드시 실행됩니다.
+              그래서 세션이 안 닫히는 일이 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>except 가 없습니다</code>
+            <span>
+              오류를 <strong>잡지 않고</strong> 그대로 위로 올려보냅니다.
+              여기서 삼키면 어디서 뭐가 터졌는지 알 수 없게 됩니다.
+              우리가 할 일은 "닫는 것" 뿐입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">세션이 뭔가요</div>
+          <p class="dim">
+            <strong>DB 와 이야기하는 한 번의 대화</strong>입니다.
+            조회하고, 넣고, 저장(<code class="inl">commit</code>)하고, 끝나면 닫습니다.
+            열어두고 안 닫으면 연결이 쌓여서 결국 DB 가 더 못 받습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="3" data-title="main.py">
+        <div class="eyebrow">3 · app (뿌리 3개)</div>
+        <h1>main.py — 앱을 조립합니다</h1>
+
+        <p>
+          <strong>실행의 시작점</strong>입니다.
+          <code class="inl">uvicorn app.main:app</code> 의 맨 뒤 <code class="inl">app</code> 이
+          이 파일에서 만든 것입니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:app/main.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>WEB</code><span>web 폴더 경로</span></div>
+          <div class="ln"><code>app</code><span>FastAPI 앱 하나</span></div>
+          <div class="ln"><code>include_router × 4</code><span>엔드포인트 묶음 4개를 붙입니다</span></div>
+          <div class="ln"><code>app.mount</code><span>화면 파일을 내보냅니다</span></div>
+          <div class="ln"><code>home()</code><span><code>/</code> 로 오면 화면으로 보냅니다</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/main.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/main.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from app.api import ask, customers, products, recommend</code>
+            <span>
+              <strong>엔드포인트 파일 네 개</strong>를 가져옵니다.
+              각 파일에 <code>router</code> 가 하나씩 들어 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>StaticFiles · RedirectResponse</code>
+            <span>화면 파일을 내보내고, 주소를 옮겨주는 도구입니다.</span>
+          </div>
+          <div class="ln">
+            <code>services 나 repositories 를 안 부릅니다</code>
+            <span>
+              <strong>이 파일은 조립만 합니다.</strong> 업무 로직이 전혀 없습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>실행 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>app = FastAPI(title=...)</code>
+            <span>
+              앱 하나를 만듭니다. <code>title</code> 은 <code>/docs</code> 문서 화면 맨 위에 뜹니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>include_router(...)</code>
+            <span>
+              파일별로 모아둔 엔드포인트를 <strong>앱에 붙입니다.</strong>
+              엔드포인트를 늘려도 이 파일은 한 줄만 늘어납니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>app.mount("/web", ...)</code>
+            <span>
+              <strong><code>/</code> 가 아니라 <code>/web</code> 입니다.</strong>
+              <code>/</code> 에 붙이면 <code>/ask</code>, <code>/products</code> 까지 가로챕니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>맨 아래에 둡니다</code>
+            <span>
+              FastAPI 는 <strong>위에서부터 맞는 것을 찾습니다.</strong>
+              라우터보다 먼저 붙이면 API 요청이 화면 쪽으로 샙니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>html=True</code>
+            <span>
+              <code>/web/</code> 로 들어오면 <strong>index.html 을 찾아</strong> 보여줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>RedirectResponse("/web/")</code>
+            <span>
+              <code>localhost:8000</code> 만 쳐도 화면으로 보내줍니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">엔드포인트 전체 목록</div>
+          <div class="flow">GET  /products                        상품 목록
+GET  /products/{product_id}           상품 상세 + 청크 정보
+POST /products                        상품 등록 + 증분 임베딩
+GET  /customers                       고객 목록
+GET  /customers/{customer_id}         고객 상세 + 마스킹 전후
+POST /ask                             AI 질문 (다 끝나면 한 번에)
+POST /ask/stream                      AI 질문 (단계마다 하나씩)
+POST /recommend/customer/{cust_id}    이 고객에게 어울리는 상품
+POST /recommend/product/{product_id}  이 상품을 안내할 고객</div>
+          <p class="dim">
+            <strong>PUT 과 DELETE 가 없습니다.</strong> 이 프로젝트에서 다루지 않기로 했습니다.
+          </p>
+        </div>
+      </section>

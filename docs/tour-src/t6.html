@@ -1,0 +1,694 @@
+      <section class="slide" data-stage="13" data-title="폴더 개요">
+        <div class="eyebrow">13 · tests</div>
+        <h1>이 프로젝트가 보장하는 것의 목록</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>터미널</b></div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>pytest -q</pre>
+        </div>
+
+        <div class="file">
+          <div class="file-bar"><div class="file-name">출력</div></div>
+          <pre class="out">........................................                        [100%]
+
+40 passed, 2 warnings in 75.50s (0:01:15)</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>test_masking.py</code>
+            <span>개인정보가 <strong>저장 단계부터</strong> 가려지는가</span>
+          </div>
+          <div class="ln">
+            <code>test_customers.py</code>
+            <span>고객 목록·상세, <strong>마스킹 전후가 나란히</strong> 나오는가</span>
+          </div>
+          <div class="ln">
+            <code>test_products.py</code>
+            <span>상품 등록과 <strong>증분 임베딩</strong>이 도는가</span>
+          </div>
+          <div class="ln">
+            <code>test_ask.py</code>
+            <span>질문이 <strong>맞는 길로</strong> 가는가 <span class="pill">OpenAI 호출</span></span>
+          </div>
+          <div class="ln">
+            <code>test_stream.py</code>
+            <span>스트리밍이 <strong>세 종류</strong>를 보내는가 <span class="pill">OpenAI 호출</span></span>
+          </div>
+          <div class="ln">
+            <code>test_history.py</code>
+            <span>이어서 물어보기가 되는가 <span class="pill">OpenAI 호출</span></span>
+          </div>
+          <div class="ln">
+            <code>test_recommend.py</code>
+            <span>추천이 <strong>이미 산 것을 안 내놓는가</strong> <span class="pill">OpenAI 호출</span></span>
+          </div>
+        </div>
+
+        <h2>이 폴더의 규칙 셋</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>conftest.py 없음</h3>
+            <p>
+              파일마다 <code>client = TestClient(app)</code> 세 줄을 씁니다.
+              반복되지만 <strong>파일 하나만 보면 전부 이해</strong>됩니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>이름은 한국어</h3>
+            <p>
+              <code>test_숫자를_세는_질문은_DB로_간다</code>.
+              실패했을 때 <strong>이름만 읽고</strong> 무엇이 깨졌는지 압니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>흔들리는 것은 안 봄</h3>
+            <p>
+              AI 답변 문장은 매번 다릅니다.
+              <strong>경로 · 개수 · 개인정보</strong>만 확인합니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">확인해도 되는 것과 안 되는 것</div>
+          <div class="lines">
+            <div class="ln"><code>route 가 "tool" 인가</code><span>안 흔들림</span></div>
+            <div class="ln"><code>path 가 정확히 그 순서인가</code><span>안 흔들림</span></div>
+            <div class="ln"><code>근거에 개인정보가 남았는가</code><span>안 흔들림</span></div>
+            <div class="ln"><code>답변 문장이 똑같은가</code><span><strong>흔들림 — 비교하지 않습니다</strong></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="13" data-title="test_ask.py">
+        <div class="eyebrow">13 · tests</div>
+        <h1>test_ask.py — 두 길이 갈리는지 봅니다</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>tests/test_ask.py</b> · 전체 · {{LINES:tests/test_ask.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:tests/test_ask.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from fastapi.testclient import TestClient</code>
+            <span>
+              <strong>서버를 안 띄우고</strong> 앱을 직접 부릅니다.
+              <code>uvicorn</code> 을 켤 필요가 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>from app.ai.masking import EMAIL, PHONE</code>
+            <span>
+              <strong>정규식을 그대로 가져다</strong> 확인합니다.
+              <code>masking.py</code> 가 파일 위에 상수로 빼둔 덕분입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>client = TestClient(app)</code>
+            <span>
+              <strong>파일 맨 위, 함수 밖</strong>에 둡니다.
+              <code>conftest.py</code> 없이도 모든 테스트가 이걸 씁니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>도우미 함수</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>def ask(question)</code>
+            <span>
+              <strong><code>test_</code> 로 시작하지 않으므로 테스트가 아닙니다.</strong>
+              pytest 는 <code>test_</code> 로 시작하는 함수만 실행합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>client.post("/ask", json={...})</code>
+            <span>
+              <code>json=</code> 으로 주면 <strong>본문을 JSON 으로</strong> 만들어 보냅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>assert response.status_code == 200</code>
+            <span>여기서 먼저 걸러야 아래에서 이상한 값으로 헤매지 않습니다.</span>
+          </div>
+        </div>
+
+        <h2>테스트 함수들</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>assert</code>
+            <span>
+              <strong>"이게 참이어야 한다"</strong> 는 뜻입니다. 거짓이면 그 자리에서 실패하고,
+              pytest 가 실패한 값을 알아서 보여줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>body["path"] == "plan -> run_tools -> mask -> generate"</code>
+            <span>
+              <strong>경로 전체를 글자로 비교</strong>합니다.
+              노드가 하나라도 빠지거나 순서가 바뀌면 걸립니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>len(body["sources"]) == 4</code>
+            <span>
+              <strong>리랭커의 <code>fill_up</code> 이 도는지</strong>를 확인하는 셈입니다.
+              AI 가 1개만 골라도 4개가 채워져야 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>not EMAIL.search(...)</code>
+            <span>
+              <strong>"못 찾아야 한다"</strong> 는 뜻입니다.
+              두 경로 모두에서 확인합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>isinstance(value, str)</code>
+            <span>
+              숫자에 정규식을 걸면 오류가 납니다.
+              <code>mask_rows</code> 와 같은 판단을 테스트에서도 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>any(word in answer for ...)</code>
+            <span>
+              <strong>여러 표현 중 하나만</strong> 있으면 통과입니다.
+              "없습니다" 든 "확인되지 않습니다" 든 다 맞는 답입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>row["rating"] &lt;= 2</code>
+            <span>
+              불만 고객 도구가 <strong>정말 평점 낮은 것만</strong> 가져왔는지 봅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>assert row["name"]</code>
+            <span>
+              <strong>이름은 남아 있어야</strong> 합니다.
+              가리면 "누구인지" 를 답할 수 없습니다. 연락처만 가립니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="13" data-title="test_masking.py · test_products.py">
+        <div class="eyebrow">13 · tests</div>
+        <h1>뒷정리하는 테스트</h1>
+
+        <p>
+          이 둘은 <strong>실제로 DB 에 상품을 넣습니다.</strong>
+          그대로 두면 다음에 돌릴 때 409 가 나서 실패합니다.
+        </p>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>tests/test_masking.py</b> · 전체 · {{LINES:tests/test_masking.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:tests/test_masking.py}}</pre>
+        </div>
+
+        <h2>줄별로 보면</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>TEST_PRODUCT_ID = "P901"</code>
+            <span>
+              <strong>실제 데이터와 안 겹치는 번호</strong>를 씁니다.
+              진짜 상품은 P001~P200 입니다.
+              <code>test_products.py</code> 는 <code>P900</code> 을 써서 서로도 안 겹칩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>remove_test_product()</code>
+            <span>
+              테스트 <strong>시작할 때</strong> 부릅니다.
+              앞선 실행이 중간에 죽어서 찌꺼기가 남았어도 깨끗해집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Chunk 를 먼저 지웁니다</code>
+            <span>
+              청크가 상품을 <code>ForeignKey</code> 로 참조하므로 <strong>순서가 중요</strong>합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>.delete()</code>
+            <span>
+              찾은 행들을 <strong>바로 지웁니다.</strong>
+              <code>.all()</code> 로 가져와 하나씩 지우는 것보다 빠릅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>SessionLocal()</code>
+            <span>
+              테스트는 <strong>API 밖에서</strong> DB 를 봅니다.
+              <code>get_db</code> 는 요청 처리용이라 여기서는 직접 열고 닫습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>test_저장된_청크에_연락처가_남아있지_않다</code>
+            <span>
+              <strong>3,060개 전부</strong>를 훑습니다.
+              "137건에 연락처가 있었다" 는 문제가 실제로 해결됐는지 확인합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>mask("건성 피부에 좋아요") == "건성 피부에 좋아요"</code>
+            <span>
+              <strong>안 바뀌어야 하는 것도 확인</strong>합니다.
+              가리기만 잘하고 멀쩡한 글을 망가뜨리면 안 됩니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>tests/test_products.py</b> · 전체 · {{LINES:tests/test_products.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:tests/test_products.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>new_chunks 와 total_chunks 비교</code>
+            <span>
+              <strong>증분 임베딩이 실제로 도는지</strong>를 숫자로 확인합니다.
+              전체를 다시 했다면 두 값이 같아집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>409 확인</code>
+            <span>
+              같은 번호로 두 번 등록하면 <strong>409 가 나와야</strong> 합니다.
+              <code>create_product</code> 의 <code>return None</code> 이
+              API 에서 상태 코드로 바뀌는 것을 검사합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>앞뒤로 지웁니다</code>
+            <span>
+              시작할 때도 끝날 때도 지워서 <strong>DB 에 찌꺼기를 남기지 않습니다.</strong>
+            </span>
+          </div>
+        </div>
+
+        <div class="note warn">
+          <div class="note-t">테스트가 앞 단계의 결정을 지켜줍니다</div>
+          <p class="dim">
+            누군가 <code class="inl">chunker.py</code> 에서
+            <code class="inl">masking.mask(...)</code> 를 지우면 <strong>바로 빨간불</strong>이 됩니다.
+            <code class="inl">clear_memory()</code> 를 빼먹어도 마찬가지입니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="13" data-title="나머지 테스트 셋">
+        <div class="eyebrow">13 · tests</div>
+        <h1>스트리밍 · 이어묻기 · 추천</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>tests/test_stream.py</b> · 전체 · {{LINES:tests/test_stream.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:tests/test_stream.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>SSE 를 직접 파싱합니다</code>
+            <span>
+              <code>web/app.js</code> 가 하는 일을 테스트가 똑같이 합니다 —
+              <code>data: </code> 를 떼고 JSON 으로 바꿉니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>세 종류가 다 오는지</code>
+            <span>
+              <code>node</code> · <code>piece</code> · <code>done</code>.
+              하나라도 빠지면 화면이 제대로 안 그려집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>글자 조각이 여럿인지</code>
+            <span>
+              <strong>한 덩어리로 오면 스트리밍이 아닙니다.</strong>
+              <code>stream=True</code> 가 빠졌는지 잡아냅니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>tests/test_history.py</b> · 전체 · {{LINES:tests/test_history.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:tests/test_history.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>history 를 손으로 만들어 보냅니다</code>
+            <span>
+              두 번 질문할 필요 없이 <strong>앞 대화를 가짜로</strong> 넣습니다.
+              빠르고 결과가 흔들리지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>history 없이도 확인</code>
+            <span>
+              <strong>둘을 나란히</strong> 봅니다.
+              대화를 주면 답하고, 안 주면 못 답해야 "정말 대화 덕분" 임이 확인됩니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>tests/test_customers.py</b> · 전체 · {{LINES:tests/test_customers.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:tests/test_customers.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>masked 가 진짜 가려졌는지</code>
+            <span>
+              <strong>이 프로젝트의 핵심 대비</strong>를 검사합니다.
+              <code>customer</code> 에는 원본이, <code>masked</code> 에는 가린 값이 있어야 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>customer 는 안 가려졌는지도 봅니다</code>
+            <span>
+              <strong>둘 다 가려지면 그것도 틀린 것</strong>입니다.
+              관리자는 원본을 봐야 연락할 수 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>total_spend 가 계산되는지</code>
+            <span>
+              컬럼이 아니라 <strong>구매 내역에서 더한 값</strong>입니다.
+              0 이 아니어야 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>없는 번호는 404</code>
+            <span>
+              Service 의 <code>return None</code> 이 <strong>API 에서 404 로 바뀌는지</strong> 검사합니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>tests/test_recommend.py</b> · 전체 · {{LINES:tests/test_recommend.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:tests/test_recommend.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>이미 산 상품이 근거에 없는지</code>
+            <span>
+              <strong><code>drop_bought</code> 가 도는지</strong>를 확인합니다.
+              프롬프트로 부탁만 했다면 가끔 실패했을 검사입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>profile 에 연락처가 없는지</code>
+            <span>
+              <strong>임베딩 API 로 나가는 문장</strong>이라 특히 중요합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>candidates 가 가려져 있는지</code>
+            <span>
+              상품→고객 방향도 확인합니다. 화면에 그대로 보여주는 값이기도 합니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="14" data-title="폴더 개요">
+        <div class="eyebrow">14 · eval</div>
+        <h1>코드가 도는 것과 답이 쓸 만한 것은 다릅니다</h1>
+
+        <div class="cards">
+          <div class="card">
+            <h3>tests/</h3>
+            <p>
+              <strong>코드가 도는가</strong><br />
+              200 을 주는가, 404 를 주는가<br />
+              O / X
+            </p>
+          </div>
+          <div class="card">
+            <h3>eval/</h3>
+            <p>
+              <strong>답이 쓸 만한가</strong><br />
+              제대로 찾았는가, 맞게 답했는가<br />
+              점수
+            </p>
+          </div>
+        </div>
+
+        <p>
+          <strong>pytest 가 전부 통과해도 답변이 엉뚱할 수 있습니다.</strong>
+          테스트는 "경로가 rag 인가" 만 봤지 "답이 맞는가" 는 안 봤습니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln"><code>dataset.py</code><span><strong>정답지 10개.</strong> 손으로 썼습니다.</span></div>
+          <div class="ln"><code>evaluate.py</code><span>채점하고 점수표를 찍습니다.</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>터미널</b></div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>python -m eval.evaluate</pre>
+        </div>
+
+        <h2>재는 것 네 가지</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>검색 적중률</code>
+            <span>정답 상품의 글을 근거로 잡았는가 <span class="pill">글자 비교</span></span>
+          </div>
+          <div class="ln">
+            <code>키워드 포함률</code>
+            <span>답변에 들어있어야 할 말이 있는가 <span class="pill">글자 비교</span></span>
+          </div>
+          <div class="ln">
+            <code>답변 품질</code>
+            <span>답이 자연스럽고 질문에 맞는가 <span class="pill tool">AI 가 채점</span></span>
+          </div>
+          <div class="ln">
+            <code>추천 적중률</code>
+            <span>숨긴 마지막 구매를 맞히는가 <span class="pill">AI 안 씀</span></span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">검색과 답변을 따로 보는 것이 핵심입니다</div>
+          <div class="lines">
+            <div class="ln"><code>검색 X / 단어 X</code><span>못 찾아왔습니다. 청킹이나 리랭커를 봐야 합니다.</span></div>
+            <div class="ln"><code>검색 O / 단어 X</code><span>찾아왔는데 못 썼습니다. 프롬프트를 봐야 합니다.</span></div>
+          </div>
+          <p class="dim">
+            <code class="inl">AskResponse</code> 에 <code class="inl">sources</code> 를
+            같이 담아둔 것이 여기서 값을 합니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="14" data-title="dataset.py · evaluate.py">
+        <div class="eyebrow">14 · eval</div>
+        <h1>정답지와 채점</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>eval/dataset.py</b> · 전체 · {{LINES:eval/dataset.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:eval/dataset.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln"><code>question</code><span>물어볼 말</span></div>
+          <div class="ln">
+            <code>expect_product</code>
+            <span>이 상품의 글이 <strong>근거로 잡혀야</strong> 합니다 → 검색이 잘 됐는가</span>
+          </div>
+          <div class="ln">
+            <code>must_include</code>
+            <span>
+              답변에 <strong>이 말이 들어있어야</strong> 합니다 → 답변이 맞는가.
+              "7일", "20분" 처럼 <strong>문서에 실제로 있는 값</strong>을 직접 보고 골랐습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>should_refuse</code>
+            <span>
+              <strong>모른다고 답해야</strong> 합니다 → 지어내지 않는가.
+              P000 은 존재하지 않는 번호입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>손으로 쓴 이유</code>
+            <span>
+              자동 생성도 가능하지만, 직접 데이터를 보고 쓰면
+              <strong>"무엇이 맞는 답인가" 를 사람이 정하게 되어</strong> 기준이 분명해집니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>eval/evaluate.py</b> · 전체 · {{LINES:eval/evaluate.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:eval/evaluate.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>ask_service · customer_service · recommend_service</code>
+            <span>
+              <strong>서비스를 그대로 부릅니다.</strong>
+              평가용 코드를 따로 만들지 않아서, 실제와 같은 길을 잽니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>retrieve · rerank 도 직접</code>
+            <span>
+              추천 적중률은 <strong>LLM 까지 갈 필요가 없어서</strong>
+              검색과 리랭킹만 씁니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>채점 함수 넷</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>all(...)</code>
+            <span><strong>전부</strong> 있어야 참. 키워드는 다 들어가야 합니다.</span>
+          </div>
+          <div class="ln">
+            <code>any(...)</code>
+            <span><strong>하나만</strong> 있으면 참. 거절 표현은 여러 가지라서요.</span>
+          </div>
+          <div class="ln">
+            <code>앞의 셋은 AI 를 안 씁니다</code>
+            <span>
+              <strong>글자 비교</strong>뿐이라 빠르고, 매번 같은 결과가 나옵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>re.findall(r"[1-5]", reply)</code>
+            <span>
+              답에서 <strong>1~5 숫자만</strong> 뽑습니다.
+              <code>pick_numbers</code> 와 같은 수법입니다 —
+              AI 가 "4점입니다" 라고 답해도 <code>4</code> 를 얻습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>if numbers else 0</code>
+            <span>숫자를 하나도 안 주면 0점. 채점 자체가 실패한 경우입니다.</span>
+          </div>
+        </div>
+
+        <h2>hit_for_one — 답을 미리 알고 채점</h2>
+        <div class="flow">고객의 구매 내역 8건
+  ↓  가장 최근 1건을 숨긴다      ← 이게 정답
+  ↓  남은 7건으로 프로필을 만든다
+  ↓  추천을 돌린다
+  ↓  숨긴 상품이 나왔는가?</div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>purchases[0]</code>
+            <span>
+              구매 내역은 <strong>최근 순</strong>이라 맨 앞이 마지막 구매입니다.
+              <code>purchase_repository</code> 의 <code>order_by(...desc())</code> 에 기댑니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>dict(detail, purchases=...[1:])</code>
+            <span>
+              원본을 <strong>복사하면서</strong> 첫 번째를 뺀 목록으로 바꿉니다.
+              <code>detail</code> 자체는 그대로 남습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>reviews=...[1:]</code>
+            <span>
+              <strong>후기도 하나 뺍니다.</strong> 안 빼면 숨긴 상품의 후기가
+              프로필에 남아서 정답을 알려주는 셈이 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>recommend_service.CANDIDATES</code>
+            <span>
+              <strong>같은 상수를 씁니다.</strong> 40을 여기 다시 적으면
+              나중에 한쪽만 바뀌어 평가와 실제가 달라집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>len(purchases) &lt; 2 → None</code>
+            <span>
+              숨길 것이 없으면 <strong>"틀렸다" 가 아니라 "잴 수 없다"</strong> 입니다.
+              그래서 <code>False</code> 가 아니라 <code>None</code> 입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>출력 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>percent(values)</code>
+            <span>
+              <code>None</code> 을 <strong>빼고</strong> 계산합니다.
+              잴 수 없는 항목이 점수를 깎으면 안 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>{True: "O", False: "X", None: "-"}</code>
+            <span>
+              <strong>딕셔너리로 값을 바꿉니다.</strong>
+              <code>if/elif/else</code> 세 줄보다 한 줄이 읽기 쉽습니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note warn">
+          <div class="note-t">LLM-as-Judge 의 한계가 그대로 보입니다</div>
+          <p>
+            <code class="inl">P000</code> 은 <strong>모른다고 답하는 것이 정답</strong>인데
+            채점 AI 는 그 사정을 몰라서 <strong>1점</strong>을 줍니다.
+            단어 칸은 O 인데도요.
+          </p>
+          <p class="dim">
+            그래서 앞의 두 지표(글자 비교)를 더 믿고, 점수는 참고로만 봅니다.
+            추천 적중률도 실행할 때마다 흔들립니다 —
+            <strong>중요한 것은 값 자체가 아니라, 고쳤을 때 오르는지</strong>입니다.
+          </p>
+        </div>
+      </section>

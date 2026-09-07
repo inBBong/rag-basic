@@ -1,0 +1,674 @@
+      <section class="slide" data-stage="4" data-title="폴더 개요">
+        <div class="eyebrow">4 · app/models</div>
+        <h1>테이블 다섯 개의 생김새</h1>
+
+        <p class="lead">
+          <strong>클래스 하나 = 테이블 하나</strong>,
+          <strong>클래스 변수 하나 = 컬럼 하나</strong>입니다.
+          이렇게 적어두면 SQLAlchemy 가 테이블을 만들어 주고,
+          조회 결과도 이 클래스의 객체로 돌려줍니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln">
+            <code>customer.py</code>
+            <span>고객 300명 <span class="pill tool">정형</span></span>
+          </div>
+          <div class="ln">
+            <code>product.py</code>
+            <span>
+              상품 200개 <span class="pill tool">정형</span> <span class="pill rag">비정형</span>
+              — 한 테이블에 둘 다 있습니다
+            </span>
+          </div>
+          <div class="ln">
+            <code>purchase.py</code>
+            <span>구매 이력 1,500건 <span class="pill tool">정형</span></span>
+          </div>
+          <div class="ln">
+            <code>review.py</code>
+            <span>후기 1,500건 <span class="pill rag">비정형</span></span>
+          </div>
+          <div class="ln">
+            <code>chunk.py</code>
+            <span>잘린 조각 3,060개 + 벡터 <span class="pill rag">비정형</span></span>
+          </div>
+          <div class="ln">
+            <code>__init__.py</code>
+            <span><strong>빈 파일이 아닙니다.</strong> 다섯 모델을 한 번에 불러옵니다.</span>
+          </div>
+        </div>
+
+        <div class="flow">customers ←─┐
+            │ └─ purchases ─→ products ←─ chunks
+            └─── reviews ────→ products</div>
+
+        <h2>지킨 규칙 셋</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>표준 타입만</h3>
+            <p>
+              <code>String</code> <code>Integer</code> <code>Text</code>
+              <code>Date</code> 만 씁니다. DB 전용 타입을 쓰면 옮길 때 고쳐야 합니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>파생 컬럼 없음</h3>
+            <p>
+              <code>total_spend</code> 같은 칸을 만들지 않습니다.
+              실제 회사 DB 에 없기 때문입니다.
+            </p>
+          </div>
+          <div class="card">
+            <h3>관계 선언 없음</h3>
+            <p>
+              <code>relationship()</code> 을 안 씁니다.
+              필요할 때 Repository 에서 <code>JOIN</code> 으로 잇습니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/models/__init__.py</b> · 전체 · {{LINES:app/models/__init__.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/models/__init__.py}}</pre>
+        </div>
+
+        <div class="note warn">
+          <div class="note-t">이 파일이 없으면 오류가 납니다</div>
+          <p>
+            <code class="inl">chunks</code> 가 <code class="inl">products</code> 를
+            <code class="inl">ForeignKey</code> 로 가리키고 있습니다.
+            그런데 어떤 파일이 <code class="inl">Chunk</code> 만 불러오면
+            SQLAlchemy 는 <code class="inl">products</code> 라는 테이블을 모릅니다.
+          </p>
+          <div class="file">
+            <div class="file-bar"><div class="file-name">그때 나는 오류</div></div>
+            <pre class="out">NoReferencedTableError: Foreign key could not find table 'products'</pre>
+          </div>
+          <p class="dim">
+            여기에 다섯을 다 적어두면 <strong>하나만 불러와도 나머지가 함께 등록</strong>됩니다.
+            이렇게 안 하면 각 파일에서 안 쓰는 모델을 억지로 import 해야 하는데 그게 더 이상합니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="4" data-title="customer.py · purchase.py">
+        <div class="eyebrow">4 · app/models</div>
+        <h1>customer.py · purchase.py — 정형 둘</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/models/customer.py</b> · 전체 · {{LINES:app/models/customer.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/models/customer.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from sqlalchemy import Column, Date, Integer, String</code>
+            <span>
+              <strong>쓰는 타입만</strong> 가져옵니다. 이 파일에는 긴 글이 없어서 <code>Text</code> 가 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>from app.db import Base</code>
+            <span>
+              모든 모델 파일에 있는 줄입니다. <code>db.py</code> 가 만들어 준 기준 클래스입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>클래스 정의 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>class Customer(Base)</code>
+            <span>
+              <code>Base</code> 를 물려받으면 <strong>SQLAlchemy 가 테이블로 인식</strong>합니다.
+              이 프로젝트에서 상속을 쓰는 몇 안 되는 자리인데,
+              <strong>라이브러리가 그렇게 쓰라고 만든 것</strong>이라 그대로 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>__tablename__ = "customers"</code>
+            <span>
+              DB 안에서 쓸 <strong>테이블 이름</strong>입니다.
+              클래스는 단수, 테이블은 복수로 쓰는 것이 관례입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Column(String, primary_key=True)</code>
+            <span>
+              <strong>이 컬럼이 행을 구분하는 열쇠</strong>라는 뜻입니다.
+              값이 겹칠 수 없고, 다른 테이블이 이 값으로 이 행을 가리킵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>age = Column(Integer)</code>
+            <span>정수 칸. CSV 에서는 글자였던 것을 <code>load_data</code> 가 바꿔 넣습니다.</span>
+          </div>
+          <div class="ln">
+            <code>joined_at = Column(Date)</code>
+            <span>날짜 칸. 이래야 "최근 가입" 같은 정렬이 됩니다.</span>
+          </div>
+          <div class="ln">
+            <code>맨 아래 주석 세 줄</code>
+            <span>
+              <strong>없는 것을 설명합니다.</strong>
+              "왜 <code>total_spend</code> 가 없나" 는 코드를 봐서는 알 수 없어서
+              주석으로 남기고, 대신 어디를 보라고 알려줍니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/models/purchase.py</b> · 전체 · {{LINES:app/models/purchase.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/models/purchase.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>ForeignKey("customers.customer_id")</code>
+            <span>
+              <strong>"이 값은 customers 테이블의 customer_id 를 가리킨다"</strong> 는 표시입니다.
+              <code>"테이블이름.컬럼이름"</code> 형식으로 적습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>왜 필요한가</code>
+            <span>
+              관계가 코드에 드러나고, DB 가 <strong>없는 고객 번호를 넣는 것을 막아줍니다.</strong>
+              나중에 <code>JOIN</code> 으로 이어붙일 때의 근거가 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>칸이 다섯 개뿐</code>
+            <span>
+              원래 여기에 <code>rating</code>·<code>review</code> 가 있었습니다.
+              <code>split_reviews.py</code> 가 떼어내서 <strong>순수한 정형 테이블</strong>이 되었습니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="4" data-title="product.py · review.py">
+        <div class="eyebrow">4 · app/models</div>
+        <h1>product.py — 한 테이블에 정형과 비정형이 함께</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/models/product.py</b> · 전체 · {{LINES:app/models/product.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/models/product.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>price · category · skin_type ...</code>
+            <span><strong>정형</strong>입니다. SQL 로 세고 거르고 정렬합니다.</span>
+          </div>
+          <div class="ln">
+            <code>description = Column(Text)</code>
+            <span>
+              짧은 소개글 3~4문장. <strong>자를 게 없어서 청킹하지 않습니다.</strong>
+              목록 응답에는 이것만 나갑니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>detail = Column(Text)</code>
+            <span>
+              긴 상세 문서. 평균 1,370자, <code>##</code> 로 나뉜 섹션 5~10개.
+              <strong>RAG 의 주력 재료</strong>입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>Text vs String</code>
+            <span>
+              <code>Text</code> 는 <strong>길이 제한 없는 긴 글</strong>입니다.
+              이름이나 카테고리처럼 짧은 값은 <code>String</code> 을 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>파일 하나에 두 성격</code>
+            <span>
+              1단계에서 후기는 <strong>파일을 갈랐는데</strong> 상품은 안 갈랐습니다.
+              같은 상품 이야기라 나누면 볼 때마다 두 곳을 봐야 합니다.
+              <strong>다루는 방법만 다르게 하면 됩니다.</strong>
+            </span>
+          </div>
+        </div>
+
+        <h2>review.py — 비정형</h2>
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/models/review.py</b> · 전체 · {{LINES:app/models/review.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/models/review.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>ForeignKey 가 셋</code>
+            <span>
+              구매·고객·상품을 모두 가리킵니다.
+              <strong>후기 하나로 세 방향을 다 찾아갈 수 있습니다.</strong>
+              20단계 "악성 후기를 남긴 고객" 이 이 덕분에 가능합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>content = Column(Text)</code>
+            <span>
+              사람이 쓴 문장이라 <strong>SQL 로는 제대로 찾을 수 없습니다.</strong>
+              그래서 청킹하고 임베딩해서 벡터로 검색합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>rating = Column(Integer)</code>
+            <span>
+              같은 테이블에 있지만 <strong>이건 정형</strong>입니다.
+              "평점 2점 이하" 는 SQL 이 정확히 걸러냅니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="4" data-title="chunk.py">
+        <div class="eyebrow">4 · app/models</div>
+        <h1>chunk.py — 잘린 조각과 벡터</h1>
+
+        <p>
+          긴 글을 통째로 검색하면 엉뚱한 부분까지 딸려옵니다.
+          그래서 <strong>의미 단위로 잘라서 한 조각씩</strong> 저장합니다.
+        </p>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/models/chunk.py</b> · 전체 · {{LINES:app/models/chunk.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/models/chunk.py}}</pre>
+        </div>
+
+        <h2>칸마다 뜻하는 것</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>chunk_id = Column(Integer, primary_key=True)</code>
+            <span>
+              앞의 테이블들과 다르게 <strong>번호를 우리가 안 정합니다.</strong>
+              정수 기본키를 두면 DB 가 1, 2, 3... 을 알아서 붙여줍니다.
+              조각은 원래 이름이 없어서 이렇게 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>source</code>
+            <span><code>"product"</code> 또는 <code>"review"</code>. 어디서 온 조각인지</span>
+          </div>
+          <div class="ln">
+            <code>source_id</code>
+            <span>원본 번호. <code>"P001"</code> 또는 <code>"R0001"</code></span>
+          </div>
+          <div class="ln">
+            <code>product_id</code>
+            <span>
+              <strong>후기 청크에도 이 값이 있습니다.</strong>
+              그래서 "이 상품과 관련된 조각" 을 한꺼번에 찾을 수 있습니다.
+              15단계 상품 상세 화면이 이걸 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>section</code>
+            <span>
+              상품 조각이면 <code>"주요 성분"</code> 같은 제목,
+              후기 조각이면 <strong>비어 있습니다</strong>(<code>None</code>).
+            </span>
+          </div>
+          <div class="ln">
+            <code>content</code>
+            <span>
+              <strong>실제로 검색 대상이 되는 글.</strong>
+              이 값이 벡터가 되고, AI 에게 참고 자료로 갑니다.
+              <strong>개인정보는 여기 담기기 전에 이미 가려집니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>embedding = Column(Text)</code>
+            <span>
+              숫자 1536개를 <strong>JSON 문자열</strong>로 담습니다.
+              SQLite 에 벡터 타입이 없어서입니다.
+              BLOB 이나 pickle 을 안 쓴 이유는, <strong>이 한 줄만 바꾸면</strong>
+              <code>Vector(1536)</code> 으로 넘어가기 때문입니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">이 테이블은 vector_store.py 혼자 만집니다</div>
+          <p class="dim">
+            <code class="inl">chunk_repository.py</code> 를 만들지 않았습니다.
+            두 파일이 같은 테이블을 만지면 <strong>"어디에 써야 하지" 에서 막힙니다.</strong>
+            그리고 나중에 pgvector 로 옮길 때 고칠 곳을 한 파일로 묶어둘 수 있습니다.
+            <code class="inl">pipeline/chunk.py</code> 만 예외입니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="5" data-title="폴더 개요">
+        <div class="eyebrow">5 · app/schemas</div>
+        <h1>주고받는 JSON 의 형식</h1>
+
+        <p class="lead">
+          DB 모델을 그대로 내보내면 <strong>안 보내고 싶은 값까지 나갑니다.</strong>
+          어떤 값이 오가는지 여기에 적어둡니다.
+        </p>
+
+        <div class="cards">
+          <div class="card">
+            <h3>models/</h3>
+            <p>DB 에 <strong>어떻게 저장할지</strong><br />컬럼 · 타입 · 기본키</p>
+          </div>
+          <div class="card">
+            <h3>schemas/</h3>
+            <p>밖으로 <strong>어떻게 주고받을지</strong><br />보낼 항목만</p>
+          </div>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>customer.py</code>
+            <span>
+              <code>CustomerOut</code> · <code>PurchaseOut</code> · <code>ReviewOut</code> ·
+              <code>CustomerDetailOut</code>
+            </span>
+          </div>
+          <div class="ln">
+            <code>product.py</code>
+            <span>
+              <code>ProductOut</code> · <code>ProductCreate</code> ·
+              <code>ChunkInfoOut</code> · <code>ProductDetailOut</code> · <code>ProductCreatedOut</code>
+            </span>
+          </div>
+          <div class="ln">
+            <code>ask.py</code>
+            <span>
+              <code>Turn</code> · <code>AskRequest</code> · <code>SourceOut</code> · <code>AskResponse</code>
+            </span>
+          </div>
+          <div class="ln">
+            <code>recommend.py</code>
+            <span><code>ProductRecommendOut</code> · <code>CustomerRecommendOut</code></span>
+          </div>
+        </div>
+
+        <h2>이름 끝으로 방향을 구분합니다</h2>
+        <div class="lines">
+          <div class="ln"><code>~Out</code><span>내보내는 것 — 응답</span></div>
+          <div class="ln"><code>~Request · ~Create</code><span>받는 것 — 요청 본문</span></div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">from_attributes 를 언제 켜나요</div>
+          <p class="dim">
+            <code class="inl">model_config = {"from_attributes": True}</code> 는
+            <strong>"딕셔너리 말고 객체를 받아도 된다"</strong> 는 설정입니다.
+            Repository 가 <code class="inl">Product</code> 객체를 줄 때 필요합니다.
+            Service 가 이미 딕셔너리로 바꿔주는 경우(<code class="inl">SourceOut</code>,
+            <code class="inl">ChunkInfoOut</code>)에는 필요 없습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="5" data-title="customer.py">
+        <div class="eyebrow">5 · app/schemas</div>
+        <h1>customer.py — 같은 데이터를 두 벌로</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/schemas/customer.py</b> · 전체 · {{LINES:app/schemas/customer.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/schemas/customer.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from datetime import date</code>
+            <span>날짜 타입을 적으려고 씁니다. 모델의 <code>Column(Date)</code> 와 짝입니다.</span>
+          </div>
+          <div class="ln">
+            <code>from pydantic import BaseModel</code>
+            <span>
+              물려받으면 <strong>타입 검사와 JSON 변환</strong>을 알아서 해줍니다.
+              <code>Base</code> 와 마찬가지로 라이브러리가 그렇게 쓰라고 만든 것입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>클래스 정의 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>name: str</code>
+            <span>
+              <code>Column(...)</code> 이 아니라 <strong>타입만</strong> 적습니다.
+              적는 방식이 모델과 다릅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>PurchaseOut 의 product_name</code>
+            <span>
+              <strong>구매 테이블에 없는 칸</strong>입니다.
+              Repository 가 JOIN 으로, Service 가 변환으로 만들어 준 값입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>customer 와 masked 가 같은 타입</code>
+            <span>
+              둘 다 <code>CustomerOut</code> 입니다. <strong>모양은 같고 값만 다릅니다.</strong>
+              형식을 따로 만들 이유가 없습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>total_spend: int</code>
+            <span>
+              <strong>고객 테이블에는 없는 값</strong>입니다.
+              Service 가 구매 내역에서 더해 채웁니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">이 파일이 프로젝트의 핵심 대비를 담고 있습니다</div>
+          <p>
+            <code class="inl">CustomerDetailOut</code> 이
+            <strong><code class="inl">customer</code> 와 <code class="inl">masked</code> 를 나란히</strong>
+            돌려줍니다.
+          </p>
+          <div class="flow">customer   010-4786-2358   관리자 화면에 보여줄 원래 값
+masked     0**-****-****   AI 에게 보낼 값</div>
+          <p class="dim">
+            DB 모델은 <code class="inl">Customer</code> 하나뿐인데
+            <strong>내보낼 때는 두 벌로</strong> 나갑니다.
+            모델과 스키마를 나눠둔 덕분입니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="5" data-title="product.py">
+        <div class="eyebrow">5 · app/schemas</div>
+        <h1>product.py — 방향에 따라 형식이 다섯</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/schemas/product.py</b> · 전체 · {{LINES:app/schemas/product.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/schemas/product.py}}</pre>
+        </div>
+
+        <h2>다섯 개가 각각 언제 쓰이는지</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>ProductOut</code>
+            <span>
+              <code>GET /products</code> 목록.
+              <strong><code>detail</code> 이 없습니다</strong> — 평균 1,370자라
+              20개면 응답이 27,000자가 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>ProductCreate</code>
+            <span>
+              <code>POST /products</code> 로 <strong>받는</strong> 것.
+              여기에는 <code>detail</code> 이 <strong>있습니다.</strong>
+              같은 상품인데 방향에 따라 형식이 다릅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>ChunkInfoOut</code>
+            <span>
+              청크 한 조각의 정보. <strong>벡터 자체는 안 보냅니다</strong> —
+              <code>embedded: bool</code> 로 있다/없다만 알려줍니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>ProductDetailOut</code>
+            <span>
+              <code>GET /products/{'{'}product_id{'}'}</code>.
+              상품 + 원문 + 청크 목록 + 전체 청크 수
+            </span>
+          </div>
+          <div class="ln">
+            <code>ProductCreatedOut</code>
+            <span>
+              등록 결과. <code>new_chunks</code> 와 <code>total_chunks</code> 를 나란히 담아
+              <strong>증분 임베딩을 숫자로 보여줍니다.</strong>
+            </span>
+          </div>
+        </div>
+
+        <h2>눈여겨볼 곳</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>section: str | None</code>
+            <span>
+              <strong>후기 조각에는 섹션 제목이 없습니다.</strong>
+              이걸 안 적으면 후기가 섞여 나올 때 오류가 납니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>product: ProductOut</code>
+            <span><strong>스키마 안에 스키마</strong>를 넣습니다. 앞에서 만든 것을 재사용합니다.</span>
+          </div>
+          <div class="ln">
+            <code>ProductOut 만 from_attributes</code>
+            <span>
+              Repository 가 <strong>객체</strong>를 주기 때문입니다.
+              나머지는 Service 가 딕셔너리로 만들어 줍니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="5" data-title="ask.py · recommend.py">
+        <div class="eyebrow">5 · app/schemas</div>
+        <h1>ask.py — 요청과 응답을 둘 다 정합니다</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/schemas/ask.py</b> · 전체 · {{LINES:app/schemas/ask.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/schemas/ask.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>Turn</code>
+            <span>
+              앞서 주고받은 대화 한 번.
+              <code>list[dict]</code> 로 두면 아무 모양이나 들어오는데,
+              <strong>question 과 answer 가 있어야 한다</strong>고 못 박아 둡니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>history: list[Turn] = []</code>
+            <span>
+              기본값이 있어서 <strong>안 보내도 됩니다.</strong> 첫 질문이 그런 경우입니다.
+              <strong>서버는 대화를 기억하지 않습니다</strong> — 화면이 들고 있다가 같이 보냅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>SourceOut</code>
+            <span>
+              답을 만들 때 참고한 글 한 조각.
+              <code>score</code> 가 있어서 <strong>얼마나 가까운 글이었는지</strong>도 보입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>route: str · path: str</code>
+            <span>
+              <strong>어느 길로 답했는지.</strong>
+              <code>"plan -&gt; retrieve -&gt; rerank -&gt; mask -&gt; generate"</code>
+              같은 글자가 그대로 화면에 그려집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>sources 와 tool_result 를 둘 다</code>
+            <span>
+              둘 중 하나는 항상 비어 있습니다. 온 길에 따라 채워지는 쪽이 다릅니다.
+              <strong>답이 이상할 때 무엇을 보고 답했는지</strong> 확인할 수 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>recommend.py — 무엇을 보냈는지도 함께 돌려줍니다</h2>
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/schemas/recommend.py</b> · 전체 · {{LINES:app/schemas/recommend.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/schemas/recommend.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>다른 스키마를 가져다 씁니다</code>
+            <span>
+              <code>SourceOut</code> 은 <code>ask.py</code> 에서,
+              <code>CustomerOut</code> 은 <code>customer.py</code> 에서 가져옵니다.
+              <strong>같은 모양을 두 번 적지 않습니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>profile: str</code>
+            <span>
+              AI 에게 <strong>실제로 보낸 프로필 문장</strong>입니다.
+              화면에 그대로 보여주면 무엇을 보냈는지 확인할 수 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>candidates: list[str]</code>
+            <span>
+              AI 에게 보여준 <strong>후보 고객 목록</strong>. 개인정보는 가려져 있습니다.
+              무엇을 보고 골랐는지 확인할 수 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>두 방향의 대비</code>
+            <span>
+              고객→상품은 <code>sources</code>(찾아온 글 조각),
+              상품→고객은 <code>candidates</code>(SQL 로 좁힌 사람 목록).
+              <strong>후보를 만드는 방법이 다르다는 게 형식에 드러납니다.</strong>
+            </span>
+          </div>
+        </div>
+      </section>

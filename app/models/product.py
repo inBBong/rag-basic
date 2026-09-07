@@ -1,0 +1,33 @@
+"""
+상품 테이블
+
+정형 데이터와 비정형 데이터가 한 테이블에 같이 있습니다.
+
+정형  : price, category, skin_type ... → SQL 로 조회
+비정형: description, detail          → 청킹하고 임베딩해서 검색
+"""
+
+from sqlalchemy import Column, Integer, String, Text
+
+from app.db import Base
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    product_id = Column(String, primary_key=True)
+    name = Column(String)
+    brand = Column(String)
+    category = Column(String)
+    price = Column(Integer)
+    volume = Column(String)
+    skin_type = Column(String)
+    ingredient = Column(String)
+    concern = Column(String)
+    tags = Column(String)
+
+    # 짧은 소개글 (3~4문장). 자를 게 없어서 청킹하지 않습니다.
+    description = Column(Text)
+
+    # 긴 상세 문서 (평균 1370자, ## 로 나뉜 9개 섹션). RAG 의 주력 재료입니다.
+    detail = Column(Text)

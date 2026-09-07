@@ -1,0 +1,724 @@
+      <section class="slide" data-stage="9" data-title="폴더 개요">
+        <div class="eyebrow">9 · app/ai</div>
+        <h1>바깥 AI API 를 부르는 코드</h1>
+
+        <p class="lead">
+          <strong>OpenAI 로 나가는 길이 전부 이 폴더를 지납니다.</strong>
+          그래서 "무엇이 밖으로 나가는가" 를 여기서만 확인하면 됩니다.
+        </p>
+
+        <div class="lines">
+          <div class="ln">
+            <code>masking.py</code>
+            <span>개인정보를 가립니다. <strong>나가기 전에 반드시 거칩니다.</strong></span>
+          </div>
+          <div class="ln">
+            <code>chunker.py</code>
+            <span>긴 글을 자릅니다. 자르면서 가립니다.</span>
+          </div>
+          <div class="ln">
+            <code>embedder.py</code>
+            <span>글 → 벡터. <strong>바깥 호출 ①</strong></span>
+          </div>
+          <div class="ln">
+            <code>vector_store.py</code>
+            <span>벡터를 저장하고 찾습니다. <strong>chunks 테이블을 만지는 유일한 파일</strong></span>
+          </div>
+          <div class="ln">
+            <code>llm.py</code>
+            <span>질문 → 답변. <strong>바깥 호출 ②</strong></span>
+          </div>
+          <div class="ln">
+            <code>prompts.py</code>
+            <span>AI 에게 보낼 문장을 모아둡니다.</span>
+          </div>
+        </div>
+
+        <h2>바깥으로 나가는 자리는 둘뿐입니다</h2>
+        <div class="flow">embedder.embed_texts   →  OpenAI Embeddings   글을 숫자로
+llm.ask / ask_stream   →  OpenAI Chat         답변·리랭킹·추천·채점
+llm.ask_with_tools     →  OpenAI Chat         도구 고르기</div>
+
+        <div class="note warn">
+          <div class="note-t">임베딩도 바깥으로 보내는 것입니다</div>
+          <p>
+            답변 만들기 직전에만 가리면 <strong>늦습니다.</strong>
+            청크는 저장되자마자 임베딩 API 로 나가고, 한 번 나간 것은 되돌릴 수 없습니다.
+          </p>
+          <div class="flow">① 저장 전   후기·상품 문서를 청크로 만들 때     ai/chunker.py
+② 전송 전   DB 조회 결과를 AI 에게 보내기 직전   graph/nodes.py 의 mask 노드
+③ 검색 전   추천 프로필을 만들자마자            services/recommend_service.py</div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">LangChain 을 쓰지 않습니다</div>
+          <p class="dim">
+            체인·리트리버·문서로더 없이 <strong>OpenAI SDK 를 직접</strong> 부릅니다.
+            다만 <code class="inl">langgraph</code> 를 설치하면
+            <code class="inl">langchain-core</code> 가 의존성으로 딸려옵니다. 이건 피할 수 없습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="9" data-title="masking.py">
+        <div class="eyebrow">9 · app/ai</div>
+        <h1>masking.py — 전화번호와 이메일만 가립니다</h1>
+
+        <p>
+          고객이 후기 본문에 연락처를 직접 적어둔 것이
+          <strong>1,500건 중 137건</strong> 있었습니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:app/ai/masking.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>EMAIL · PHONE</code><span>찾을 모양을 미리 만들어 둔 정규식</span></div>
+          <div class="ln"><code>hide_email(match)</code><span>이메일 하나를 가린 글자로</span></div>
+          <div class="ln"><code>mask(text)</code><span><strong>글 하나</strong>를 가립니다. 나머지가 전부 이걸 씁니다.</span></div>
+          <div class="ln"><code>mask_chunks(chunks)</code><span>검색해 온 <strong>청크 목록</strong></span></div>
+          <div class="ln"><code>mask_rows(rows)</code><span>DB 조회 <strong>결과 목록</strong></span></div>
+          <div class="ln"><code>show_customers()</code><span><strong>컬럼</strong>에 들어있는 연락처 — 고객 테이블</span></div>
+          <div class="ln"><code>show_reviews()</code><span><strong>글 속</strong>에 섞인 연락처 — 후기 본문 (원본 CSV 를 읽습니다)</span></div>
+          <div class="ln"><code>main()</code><span>위 둘을 차례로 불러 가리기 전후를 나란히 찍습니다</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/ai/masking.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/ai/masking.py}}</pre>
+        </div>
+
+        <h2>정규식 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>re.compile(...)</code>
+            <span>
+              찾을 모양을 <strong>미리 만들어 둡니다.</strong> 매번 새로 만들지 않아서 빠르고,
+              다른 파일에서 <code>from app.ai.masking import EMAIL</code> 로 꺼내 쓸 수도 있습니다.
+              <strong>테스트가 실제로 그렇게 씁니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>r"0\d{1,2}-?\d{3,4}-?\d{4}"</code>
+            <span>
+              <code>0</code> 으로 시작 → 숫자 1~2개 → 하이픈은 있어도 없어도 됨(<code>-?</code>) →
+              숫자 3~4개 → 하이픈 → 숫자 4개.
+              <strong>앞의 <code>r</code></strong> 은 역슬래시를 글자 그대로 쓰겠다는 표시입니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>함수 정의 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>if not text: return text</code>
+            <span>
+              <code>None</code> 이나 빈 글자면 그냥 돌려줍니다.
+              <code>None</code> 에 정규식을 걸면 오류가 납니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>EMAIL.sub(hide_email, text)</code>
+            <span>
+              찾은 것을 바꿉니다. 두 번째가 <strong>대상 글</strong>, 첫 번째가 <strong>바꿀 내용</strong>.
+              함수를 넣으면 <strong>찾을 때마다 그 함수를 불러서</strong> 나온 값으로 바꿉니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>PHONE.sub("0**-****-****", ...)</code>
+            <span>
+              이쪽은 함수가 아니라 <strong>고정된 글자</strong>로 바꿉니다.
+              전화번호는 앞자리도 안 남깁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>match.group().partition("@")</code>
+            <span>
+              찾아낸 글자를 <code>@</code> 기준으로 <strong>셋</strong>으로 나눕니다: 앞 / 구분자 / 뒤.
+              가운데는 안 써서 <code>_</code> 로 받습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>f"{name[:2]}***@{domain}"</code>
+            <span>앞 두 글자만 남깁니다. <code>"eunsu45" → "eu"</code></span>
+          </div>
+          <div class="ln">
+            <code>dict(chunk, content=mask(...))</code>
+            <span>
+              원래 딕셔너리를 <strong>복사하면서 한 키만</strong> 바꾼 새 딕셔너리를 만듭니다.
+              원본을 건드리지 않습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>isinstance(value, str)</code>
+            <span>
+              <strong>글자인 것만</strong> 가립니다.
+              나이나 가격 같은 숫자에 <code>mask</code> 를 걸면 오류가 납니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>{key: ... for key, value in row.items()}</code>
+            <span>
+              <strong>딕셔너리를 만드는 짧은 문법.</strong> 중괄호를 쓰고 <code>키: 값</code> 으로 적습니다.
+              <code>row.items()</code> 가 (키, 값) 짝을 하나씩 줍니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">일방향입니다 — 복원하지 않습니다</div>
+          <p class="dim">
+            되돌리는 함수가 없습니다. 그래서 <strong>AI 는 진짜 번호를 끝까지 알 수 없습니다.</strong>
+            실제 연락은 관리자가 고객 관리 화면에서 원본을 보고 합니다.
+            <strong>이름과 고객번호는 안 가립니다</strong> — 가리면 "누구인지" 를 답할 수 없습니다.
+          </p>
+        </div>
+
+        <div class="note">
+          <div class="note-t">터미널에서 확인해 보기</div>
+          <div class="file">
+            <div class="file-bar">
+              <div class="file-name"><b>터미널</b></div>
+              <button class="copy">복사</button>
+            </div>
+            <pre>python -m app.ai.masking</pre>
+          </div>
+          <p class="dim">
+            파일 아래 <code class="inl">main()</code> 이 DB 에서 고객 몇 명과
+            연락처가 섞인 청크를 찾아 <strong>가리기 전후를 나란히</strong> 찍어줍니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="9" data-title="chunker.py">
+        <div class="eyebrow">9 · app/ai</div>
+        <h1>chunker.py — 자르는 규칙을 한 곳에</h1>
+
+        <p>
+          <strong>청킹이 필요한 곳이 두 군데</strong>입니다.
+          <code class="inl">pipeline/chunk.py</code>(처음 200개)와
+          <code class="inl">services/product_service.py</code>(새 상품 하나).
+          규칙을 여기 두고 양쪽이 가져다 씁니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:app/ai/chunker.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>split_detail(product_name, detail)</code><span>긴 문서 → <strong>섹션 목록</strong></span></div>
+          <div class="ln"><code>make_review_text(...)</code><span>후기 한 건 → 검색용 글</span></div>
+          <div class="ln"><code>make_product_chunks(product)</code><span>섹션들 → <strong>Chunk 객체 목록</strong></span></div>
+          <div class="ln"><code>make_review_chunk(review, product_name)</code><span>후기 → <strong>Chunk 객체 하나</strong></span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/ai/chunker.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/ai/chunker.py}}</pre>
+        </div>
+
+        <h2>import 부분</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>from app.ai import masking</code>
+            <span>
+              <strong>같은 폴더 안에서 부릅니다.</strong>
+              자르면서 동시에 가리기 위해서입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>from app.models.chunk import Chunk</code>
+            <span>Chunk 객체를 만들어 돌려주기 때문에 모델이 필요합니다.</span>
+          </div>
+        </div>
+
+        <h2>split_detail — 자르는 규칙</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>detail.split("\n## ")</code>
+            <span>
+              <strong>줄바꿈 + ## + 공백</strong>을 기준으로 끊습니다.
+              본문 중간에 <code>##</code> 이 나와도 줄 맨 앞이 아니면 안 잘립니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>block.startswith("## ")</code>
+            <span>
+              문서 <strong>맨 처음</strong> 섹션은 앞에 줄바꿈이 없어서 안 잘립니다.
+              그 경우만 걸러 앞 3글자를 떼어냅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>if not block: continue</code>
+            <span>빈 조각은 건너뜁니다. 문서 끝의 빈 줄에서 생깁니다.</span>
+          </div>
+          <div class="ln">
+            <code>block.partition("\n")</code>
+            <span>
+              <strong>첫 줄바꿈</strong>을 기준으로 셋으로 나눕니다. 앞이 제목, 뒤가 본문.
+              <code>split</code> 이 아닌 이유는 <strong>본문 안의 줄바꿈까지 나눠지면 안 되기</strong> 때문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>f"{product_name} - {title}\n{body}"</code>
+            <span>
+              <strong>여기가 핵심입니다.</strong> 조각 맨 앞에 상품 이름과 섹션 제목을 붙입니다.
+              이 한 줄 덕분에 상품 이름으로 검색이 됩니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>Chunk 를 만드는 두 함수</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>[Chunk(...) for section in split_detail(...)]</code>
+            <span>섹션 하나하나를 <strong>Chunk 객체로</strong> 바꿔 목록을 만듭니다.</span>
+          </div>
+          <div class="ln">
+            <code>section=None</code>
+            <span>후기에는 섹션 제목이 없습니다. DB 에서 빈 값이 됩니다.</span>
+          </div>
+          <div class="ln">
+            <code>content=masking.mask(...)</code>
+            <span>
+              <strong>저장하기 직전에 가립니다.</strong> 상품 문서와 후기 모두에 똑같이 겁니다.
+              상품 문서에는 연락처가 없지만,
+              <strong>"저장하는 모든 청크는 가린다" 는 규칙 하나로 두는 편</strong>이
+              예외를 기억하는 것보다 낫습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>make_review_text 를 따로 뺀 이유</code>
+            <span>
+              글자를 만드는 일과 객체를 만드는 일이 다릅니다.
+              나눠두면 <strong>"어떤 글이 검색 대상인가" 만 따로</strong> 볼 수 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="note">
+          <div class="note-t">파일 위 주석에 규칙 셋이 적혀 있습니다</div>
+          <p class="dim">
+            ① 의미 단위로 자른다 ② 조각마다 상품 이름을 붙인다 ③ 저장 전에 가린다.
+            <strong>②가 검색 품질에 가장 크게 영향을 줍니다</strong> —
+            "가벼운 마무리가 필요할 때..." 라는 조각만으로는 어느 상품인지 알 수 없습니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="9" data-title="embedder.py · llm.py">
+        <div class="eyebrow">9 · app/ai</div>
+        <h1>바깥으로 나가는 두 파일</h1>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/ai/embedder.py</b> · 전체 · {{LINES:app/ai/embedder.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/ai/embedder.py}}</pre>
+        </div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>MODEL = "text-embedding-3-small"</code>
+            <span>
+              <strong>모델은 상수 한 줄.</strong> 바꾸고 싶으면 이 줄만 고칩니다.
+              <strong>저장할 때와 찾을 때 같은 모델을 써야 합니다</strong> —
+              다르면 좌표계가 달라 엉뚱한 결과가 나옵니다.
+              같은 함수를 쓰기 때문에 자동으로 지켜집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>raise SystemExit(...)</code>
+            <span>
+              키가 비어 있으면 <strong>한 줄 안내</strong>로 멈춥니다.
+              이게 없으면 OpenAI 라이브러리가 20줄짜리 오류를 쏟아냅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>client = wrap_openai(OpenAI(...))</code>
+            <span>
+              <strong>LangSmith 로 감싼 것</strong>입니다.
+              <code>.env</code> 의 <code>LANGSMITH_TRACING</code> 이 true 가 아니면 아무 일도 안 합니다.
+              <code>embed_texts</code> 는 <strong>한 글자도 안 고쳤습니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>input=texts</code>
+            <span>
+              <strong>목록을 통째로</strong> 보냅니다.
+              100개를 한 번에 보내면 요청 1번, 하나씩이면 100번입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>[item.embedding for item in response.data]</code>
+            <span>
+              응답에서 <strong>벡터만</strong> 꺼냅니다.
+              <strong>넣은 순서 그대로</strong> 돌아오므로 <code>zip</code> 으로 짝지을 수 있습니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/ai/llm.py</b> · 전체 · {{LINES:app/ai/llm.py}}줄</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/ai/llm.py}}</pre>
+        </div>
+
+        <h2>함수 셋이 각각 언제 쓰이는지</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>ask</code>
+            <span>
+              가장 많이 쓰입니다 — <strong>리랭킹 · 추천 · 채점</strong>.
+              <code>system</code> 과 <code>user</code> 를 나눠 보냅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>ask_with_tools</code>
+            <span>
+              <code>plan</code> 노드만 씁니다. <code>tools=tool_specs</code> 한 줄이 차이의 전부입니다.
+              <strong>글자가 아니라 message 를 통째로</strong> 돌려줍니다 —
+              <code>tool_calls</code> 를 봐야 하기 때문입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>ask_stream</code>
+            <span>
+              <code>generate</code> 노드만 씁니다. <code>stream=True</code> 한 줄이 차이입니다.
+              <strong>제너레이터</strong>라 <code>for</code> 로 받습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>줄별로 보면</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>role: "system"</code>
+            <span>
+              <strong>역할과 규칙</strong>을 정합니다. AI 가 더 무겁게 받아들입니다.
+              "자료에 없으면 지어내지 마세요" 같은 지시는 여기 둡니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>role: "user"</code>
+            <span><strong>이번 요청</strong>입니다. 매번 내용이 바뀝니다.</span>
+          </div>
+          <div class="ln">
+            <code>response.choices[0].message.content</code>
+            <span>
+              OpenAI 는 답을 <strong>여러 개</strong> 만들 수도 있어서 목록으로 옵니다.
+              하나만 요청했으니 첫 번째의 글자를 꺼냅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>piece.choices[0].delta.content</code>
+            <span>
+              스트리밍에서는 <code>message</code> 자리에 <code>delta</code> 가 옵니다.
+              <strong>"이번에 늘어난 부분"</strong> 이라는 뜻입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>if piece.choices and ...</code>
+            <span>
+              <strong>글자가 없는 조각</strong>도 섞여 옵니다(첫 조각, 마지막 조각).
+              <code>and</code> 는 앞이 거짓이면 뒤를 안 봐서 빈 목록에 <code>[0]</code> 해도 안전합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>yield</code>
+            <span>
+              함수를 끝내지 않고 값 하나를 내보냅니다.
+              <code>db.py</code> 의 <code>get_db</code> 와 같은 문법입니다.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="9" data-title="vector_store.py">
+        <div class="eyebrow">9 · app/ai</div>
+        <h1>vector_store.py — chunks 테이블의 유일한 주인</h1>
+
+        <p>
+          <strong>왜 이 파일 하나로 몰았나요?</strong>
+          마지막에 SQLite 를 Supabase(pgvector)로 바꿀 때
+          <strong>고칠 코드를 여기 하나에 가둬 두려는 것</strong>입니다.
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:app/ai/vector_store.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>_chunks · _vectors</code><span>메모리에 올려둔 벡터. <strong>모듈 변수</strong></span></div>
+          <div class="ln"><code>find_chunks_to_embed(db)</code><span><strong>벡터 없는 것만</strong> 가져옵니다</span></div>
+          <div class="ln"><code>add_chunks(db, chunks)</code><span>새 청크 저장 (벡터 없이)</span></div>
+          <div class="ln"><code>save_embeddings(db, chunks, vectors)</code><span>청크에 벡터를 붙여 저장</span></div>
+          <div class="ln"><code>clear_memory()</code><span>메모리를 비웁니다</span></div>
+          <div class="ln"><code>count_all · count_embedded</code><span>개수 세기</span></div>
+          <div class="ln"><code>find_first_embedded(db)</code><span>벡터 하나 꺼내 보기</span></div>
+          <div class="ln"><code>find_chunks_by_product(db, id)</code><span>이 상품의 조각들 (화면용)</span></div>
+          <div class="ln"><code>load_into_memory(db)</code><span>벡터를 전부 읽어 메모리에</span></div>
+          <div class="ln"><code>search(db, query_vector, top_k)</code><span><strong>가까운 청크 찾기</strong></span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/ai/vector_store.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/ai/vector_store.py}}</pre>
+        </div>
+
+        <h2>import 와 모듈 변수</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>import json</code>
+            <span>
+              벡터를 <strong>글자로 바꿔 저장</strong>하고 다시 읽습니다.
+              SQLite 에 벡터 타입이 없어서입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>import numpy as np</code>
+            <span>
+              유사도 계산용. <strong>반복문 없이 3,060개를 한 번에</strong> 계산합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>_chunks = None</code>
+            <span>
+              밑줄로 시작하는 이름은 <strong>"바깥에서 직접 쓰지 마세요"</strong> 라는 표시입니다.
+              함수 밖에 있어서 <strong>프로그램이 켜져 있는 동안 값이 남습니다.</strong>
+            </span>
+          </div>
+        </div>
+
+        <h2>저장 쪽 함수들</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>Chunk.embedding.is_(None)</code>
+            <span>
+              "이 컬럼이 비어 있는 행" 을 찾습니다.
+              <strong>파이썬의 <code>is None</code> 을 쓰면 안 됩니다</strong> —
+              SQLAlchemy 는 SQL 을 만들어야 해서 자기 방식이 필요합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>zip(chunks, vectors)</code>
+            <span>
+              두 목록을 <strong>짝지어</strong> 꺼냅니다.
+              순서가 같아야 해서, <code>embed_texts</code> 가 순서를 지켜 돌려주는 것이 중요합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>json.dumps(vector)</code>
+            <span>
+              숫자 목록 → 글자.
+              <strong>이 한 줄과 컬럼 타입만 바꾸면</strong> pgvector 로 넘어갑니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>find_chunks_to_embed 의 쓸모</code>
+            <span>
+              "벡터 없는 것만" 이라는 조건 하나로
+              <strong>중간에 끊겨도 이어서 하기</strong>와
+              <strong>새 상품만 임베딩하기</strong>가 둘 다 됩니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>메모리 쪽 — 왜 필요한가</h2>
+        <div class="flow">DB 에서 3060개 읽기        0.13초
+JSON → 숫자로 변환         1.04초     ← 매번 하면 질문마다 1.2초
+코사인 유사도 계산          0.6밀리초
+
+처음 한 번만 읽어두면      1192밀리초 → 0.5밀리초</div>
+
+        <div class="lines">
+          <div class="ln">
+            <code>global _chunks, _vectors</code>
+            <span>
+              함수 안에서 <strong>바깥 변수의 값을 바꾸겠다</strong>고 선언합니다.
+              이게 없으면 함수 안에만 있는 새 변수가 만들어집니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>딕셔너리로 담는 이유</code>
+            <span>
+              DB 객체를 그대로 들고 있으면 <strong>세션이 닫힌 뒤 쓸 수 없습니다.</strong>
+              필요한 값만 뽑아두면 언제든 쓰고, JSON 으로 내보내기도 쉽습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>np.array(..., dtype=np.float32)</code>
+            <span>
+              3060×1536 짜리 <strong>표 한 장</strong>을 만듭니다.
+              <code>float32</code> 는 메모리를 절반만 씁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>if _vectors is None: load_into_memory(db)</code>
+            <span>
+              <strong>처음 한 번만</strong> 읽습니다. 이런 걸 지연 로딩이라고 합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>_vectors @ query</code>
+            <span>
+              <strong>행렬 곱셈</strong>입니다. 표와 벡터를 곱하면
+              길이 3060짜리 점수 배열이 한 번에 나옵니다.
+              벡터 길이가 모두 1이라 <strong>곱해서 더하면 그게 곧 코사인 유사도</strong>입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>np.argsort(-scores)[:top_k]</code>
+            <span>
+              정렬했을 때의 <strong>위치 번호</strong>를 돌려줍니다.
+              앞에 <code>-</code> 를 붙이면 큰 값이 앞으로 옵니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>float(scores[index])</code>
+            <span>
+              numpy 숫자를 파이썬 숫자로 바꿉니다.
+              <strong>그래야 JSON 으로 내보낼 수 있습니다.</strong>
+            </span>
+          </div>
+          <div class="ln">
+            <code>clear_memory()</code>
+            <span>
+              새 상품이 들어오면 메모리가 옛것이 됩니다.
+              비워두면 다음 검색 때 다시 읽습니다.
+              <strong>캐시를 두면 갱신할 책임이 따라옵니다.</strong>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-stage="9" data-title="prompts.py">
+        <div class="eyebrow">9 · app/ai</div>
+        <h1>prompts.py — AI 에게 보낼 문장을 한 곳에</h1>
+
+        <p>
+          프롬프트를 코드 여기저기에 흩어 두면 나중에 고칠 때 찾기 어렵습니다.
+          <strong>이 파일만 열면 AI 에게 무슨 말을 시키는지 다 보입니다.</strong>
+        </p>
+
+        <h2>이 파일에 있는 것 — {{LINES:app/ai/prompts.py}}줄</h2>
+        <div class="lines">
+          <div class="ln"><code>PLAN_SYSTEM</code><span>도구를 쓸지 말지 — <code>plan</code> 노드</span></div>
+          <div class="ln"><code>RERANK_SYSTEM</code><span>번호만 답하기 — 리랭커</span></div>
+          <div class="ln"><code>RAG_SYSTEM</code><span>자료를 보고 답하기 — <code>generate</code> (검색 경로)</span></div>
+          <div class="ln"><code>TOOL_SYSTEM</code><span>조회 결과를 정리하기 — <code>generate</code> (도구 경로)</span></div>
+          <div class="ln"><code>RECOMMEND_SYSTEM</code><span>상품 추천 — 고객→상품</span></div>
+          <div class="ln"><code>CUSTOMER_RECOMMEND_SYSTEM</code><span>고객 고르기 — 상품→고객</span></div>
+          <div class="ln"><code>build_history(history)</code><span>앞 대화를 글로</span></div>
+          <div class="ln"><code>build_rag_prompt · build_tool_prompt</code><span>자료를 붙여 질문 만들기</span></div>
+          <div class="ln"><code>build_recommend_prompt · build_customer_recommend_prompt</code><span>추천 요청 만들기</span></div>
+        </div>
+
+        <div class="file">
+          <div class="file-bar">
+            <div class="file-name"><b>app/ai/prompts.py</b> · 전체</div>
+            <button class="copy">복사</button>
+          </div>
+          <pre>{{CODE:app/ai/prompts.py}}</pre>
+        </div>
+
+        <h2>import 가 없습니다</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>가져오는 것이 하나도 없습니다</code>
+            <span>
+              글자와 <code>f-string</code> 뿐입니다.
+              <strong>이 파일은 아무것도 부르지 않고, 모두가 이 파일을 부릅니다.</strong>
+            </span>
+          </div>
+        </div>
+
+        <h2>상수 여섯 — 눈여겨볼 문장들</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>"예)" 를 양쪽에 둡니다</code>
+            <span>
+              <code>PLAN_SYSTEM</code> 은 "쓰는 질문" 과 "안 쓰는 질문" 예시를 <strong>둘 다</strong> 줍니다.
+              규칙만 말하는 것보다 훨씬 정확합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>{top_k}</code>
+            <span>
+              <code>RERANK_SYSTEM</code> 은 <strong>f-string 이 아니라 그냥 글자</strong>라
+              중괄호가 남아 있습니다. 나중에 <code>.format(top_k=4)</code> 로 채웁니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"자료에서 확인되지 않습니다"</code>
+            <span>
+              <strong>지어내지 말라</strong>는 지시. 실무에서 가장 자주 터지는 사고를 한 줄로 막습니다.
+              테스트와 평가가 이 문구를 확인합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"가려진 그대로 씁니다"</code>
+            <span>
+              이 문장이 없으면 AI 가 <code>0**-****-****</code> 를 보고
+              <strong>그럴듯한 번호를 지어내려</strong> 할 수 있습니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"먼저 제안하지 않습니다"</code>
+            <span>
+              "원하시면 더 알려드릴까요?" 를 막습니다.
+              <strong>못 지킬 약속을 하지 않게</strong> 하려는 것입니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>TOOL_SYSTEM 의 "답하는 방식"</code>
+            <span>
+              처음엔 "표나 목록으로" 만 있었습니다. 그랬더니
+              <strong>"대응 계획을 알려줘" 에도 표만 그렸습니다.</strong>
+              질문 종류에 따라 갈라줬습니다.
+            </span>
+          </div>
+        </div>
+
+        <h2>함수 다섯 — 자료를 붙이는 방법</h2>
+        <div class="lines">
+          <div class="ln">
+            <code>build_history</code>
+            <span>
+              대화가 없으면 <strong>빈 문자열</strong>을 돌려줍니다.
+              그래서 부르는 쪽은 <code>build_history(...) + 질문</code> 이라고만 쓰면
+              대화가 있든 없든 그대로 동작합니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>"\n\n".join(...)</code>
+            <span>조각 사이를 빈 줄로 띄웁니다. 구분이 되어야 AI 가 헷갈리지 않습니다.</span>
+          </div>
+          <div class="ln">
+            <code>f"[{chunk['source_id']}] ..."</code>
+            <span>
+              조각 앞에 <strong>번호</strong>를 붙입니다.
+              AI 가 "P001 에 따르면" 처럼 근거를 밝힐 수 있게 됩니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>build_recommend_prompt 에는 번호가 없습니다</code>
+            <span>
+              번호를 넣었더니 AI 가 <code>[R0610]</code> 을
+              <strong>상품 이름인 것처럼</strong> 답변에 써 버렸습니다.
+              그래서 추천에서는 본문만 보냅니다.
+            </span>
+          </div>
+          <div class="ln">
+            <code>str(row)</code>
+            <span>
+              <code>build_tool_prompt</code> 는 딕셔너리를 <strong>글자로</strong> 바꿔 보냅니다.
+              <code>{'name': '오수빈', 'total_spend': 596000}</code> 그대로요. AI 는 이 모양을 잘 읽습니다.
+            </span>
+          </div>
+        </div>
+      </section>
