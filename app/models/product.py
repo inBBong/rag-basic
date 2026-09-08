@@ -7,7 +7,9 @@
 비정형: description, detail          → 청킹하고 임베딩해서 검색
 """
 
-from sqlalchemy import Column, Integer, String, Text
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Integer, String, Text
 
 from app.db import Base
 
@@ -31,3 +33,7 @@ class Product(Base):
 
     # 긴 상세 문서 (평균 1370자, ## 로 나뉜 9개 섹션). RAG 의 주력 재료입니다.
     detail = Column(Text)
+
+    # 등록 시각입니다. POST /products 로 새로 등록하면 자동으로 지금 시각이 찍힙니다.
+    # CSV 로 처음 적재한 상품은 비어 있습니다(NULL). 그래서 "값이 있다 = 신상품" 이 됩니다.
+    created_at = Column(DateTime, default=datetime.now)
