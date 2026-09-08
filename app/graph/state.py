@@ -11,6 +11,10 @@ class GraphState(TypedDict):
 
     question: str
 
+    # 앞서 주고받은 대화입니다. [{"question": ..., "answer": ...}]
+    # 비어 있으면 새 대화입니다.
+    history: list
+
     # plan 이 정합니다. "tool" 또는 "rag"
     route: str
 

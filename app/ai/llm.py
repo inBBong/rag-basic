@@ -1,10 +1,4 @@
-"""
-OpenAI 에게 질문하고 답을 받아옵니다.
-
-모델은 .env 의 OPENAI_MODEL 로 정합니다. 코드를 고치지 않고 바꿀 수 있습니다.
-쓸 수 있는 이름은 계정마다 다릅니다. 없는 이름을 넣으면 404 가 나고
-과금도 되지 않으므로, 안 되면 다른 이름으로 바꿔 보면 됩니다.
-"""
+# OpenAI 에게 질문하고 답을 받아옵니다.
 
 from openai import OpenAI
 
@@ -15,7 +9,7 @@ if not OPENAI_API_KEY:
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# llm으로부터 문자 답변을 받기 위한 요청함수
+
 def ask(system_prompt, user_prompt):
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
@@ -27,7 +21,23 @@ def ask(system_prompt, user_prompt):
     return response.choices[0].message.content
 
 
-# 도구 목록을 같이 건네고, AI 가 도구를 고르는지 봅니다. (문자값을 받는게 아니라 객체를 전달받기 위함)
+# 답을 조각조각 받아옵니다.
+def ask_stream(system_prompt, user_prompt):
+    pieces = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        stream=True,
+    )
+
+    for piece in pieces:
+        if piece.choices and piece.choices[0].delta.content:
+            yield piece.choices[0].delta.content
+
+
+# 도구 목록을 같이 건네고, AI 가 도구를 고르는지 봅니다.
 def ask_with_tools(system_prompt, user_prompt, tool_specs):
     response = client.chat.completions.create(
         model=OPENAI_MODEL,

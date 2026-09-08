@@ -2,6 +2,8 @@
 
 import json
 
+from langgraph.config import get_stream_writer
+
 from app.ai import llm, masking, prompts
 from app.rag.reranker import rerank as rerank_chunks
 from app.rag.retriever import retrieve as retrieve_chunks
@@ -13,7 +15,8 @@ TOP_K = 4
 
 # 도구를 쓸지 검색을 할지 정합니다.
 def plan(state):
-    message = llm.ask_with_tools(prompts.PLAN_SYSTEM, state["question"], tools.TOOL_SPECS)
+    user_prompt = prompts.build_history(state["history"]) + state["question"]
+    message = llm.ask_with_tools(prompts.PLAN_SYSTEM, user_prompt, tools.TOOL_SPECS)
 
     if not message.tool_calls:
         return {"route": "rag", "path": state["path"] + ["plan"]}
@@ -34,8 +37,11 @@ def run_tools(state):
     return {"tool_result": rows, "path": state["path"] + ["run_tools"]}
 
 
+# 질문과 비슷한 글을 찾아옵니다.
 def retrieve(state):
-    documents = retrieve_chunks(state["db"], state["question"], CANDIDATES)
+    search_text = prompts.build_history(state["history"]) + state["question"]
+
+    documents = retrieve_chunks(state["db"], search_text, CANDIDATES)
     return {"documents": documents, "path": state["path"] + ["retrieve"]}
 
 
@@ -57,10 +63,20 @@ def mask(state):
 def generate(state):
     if state["route"] == "tool":
         system_prompt = prompts.TOOL_SYSTEM
-        user_prompt = prompts.build_tool_prompt(state["question"], state["tool_result"])
+        user_prompt = prompts.build_tool_prompt(
+            state["question"], state["tool_result"], state["history"]
+        )
     else:
         system_prompt = prompts.RAG_SYSTEM
-        user_prompt = prompts.build_rag_prompt(state["question"], state["documents"])
+        user_prompt = prompts.build_rag_prompt(
+            state["question"], state["documents"], state["history"]
+        )
 
-    answer = llm.ask(system_prompt, user_prompt)
-    return {"answer": answer, "path": state["path"] + ["generate"]}
+    write = get_stream_writer()
+    pieces = []
+
+    for piece in llm.ask_stream(system_prompt, user_prompt):
+        pieces.append(piece)
+        write({"piece": piece})
+
+    return {"answer": "".join(pieces), "path": state["path"] + ["generate"]}
