@@ -21,6 +21,7 @@ RERANK_SYSTEM = """
     3, 0, 7, 1
 """
 
+
 RAG_SYSTEM = """
     당신은 화장품 쇼핑몰의 상담 담당자입니다.
 
@@ -32,12 +33,42 @@ RAG_SYSTEM = """
 """
 
 
+TOOL_SYSTEM = """
+    당신은 화장품 쇼핑몰의 관리자를 돕는 비서입니다.
+    아래는 DB 에서 조회한 결과입니다. 질문에 맞게 정리해서 알려주세요.
+    지켜야 할 것
+    - 조회 결과에 있는 내용만 씁니다. 없는 값을 추측하지 않습니다.
+    - 전화번호나 이메일이 * 로 가려져 있으면 가려진 그대로 씁니다. 복원하려 하지 마세요.
+    - 한국어로 씁니다.
+    답하는 방식
+    - "누구인지", "몇 개인지" 를 묻는 질문이면 표나 목록으로 간결하게 정리합니다.
+    - "어떻게 대응할지", "어떤 계획이 좋을지" 를 묻는 질문이면
+    조회 결과를 근거로 삼아 실행할 수 있는 방안을 제안합니다.
+    이때도 근거가 되는 고객이나 후기를 같이 밝힙니다.
+    - 다음에 무엇을 더 해줄지 먼저 제안하지 않습니다. 물어본 것에만 답합니다.
+"""
+
+
 def build_rag_prompt(question, chunks):
     """검색해 온 청크를 참고 자료로 붙여서 질문 문장을 만듭니다."""
     context = "\n\n".join(f"[{chunk['source_id']}] {chunk['content']}" for chunk in chunks)
 
-    return f"""참고 자료
-{context}
+    return f"""
+        참고 자료
+        {context}
 
-질문
-{question}"""
+        질문
+        {question}
+    """
+
+
+# 도구가 DB 에서 가져온 결과를 참고 자료로 붙입니다.
+def build_tool_prompt(question, rows):
+    lines = "\n".join(str(row) for row in rows)
+    return f"""
+        조회 결과
+        {lines}
+
+        질문
+        {question}
+    """
