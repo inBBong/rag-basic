@@ -1,12 +1,4 @@
-"""
-벡터를 저장합니다.
-
-chunks 테이블을 다루는 곳은 이 파일 하나뿐입니다. (pipeline 스크립트만 예외)
-SQLite 와 Supabase 의 차이를 전부 이 파일 안에 가둬 두려는 것입니다.
-마지막에 Supabase 로 옮길 때 고치는 파일이 여기 하나로 끝납니다.
-
-지금은 SQLite 라서 벡터를 JSON 문자열로 저장합니다.
-"""
+# 벡터를 저장하고 찾습니다.
 
 import json
 
@@ -14,25 +6,39 @@ import numpy as np
 
 from app.models.chunk import Chunk
 
+# 벡터를 담아두는 자리입니다.
+#
+# 벡터 3060개를 JSON 에서 숫자로 바꾸는 데 1.2초가 걸립니다.
+# 질문할 때마다 이걸 다시 하면 매번 1.2초씩 기다려야 합니다.
+# 그래서 처음 한 번만 읽어서 여기 올려두고, 그다음부터는 바로 씁니다.
 _chunks = None
 _vectors = None
 
 
+# 아직 벡터가 없는 청크만 가져옵니다.
 def find_chunks_to_embed(db):
-    """아직 벡터가 없는 청크만 가져옵니다.
-
-    이 함수 덕분에 나중에 증분 임베딩이 가능합니다.
-    새 상품을 추가해도 그 상품의 청크만 벡터가 없으니, 그것만 임베딩하면 됩니다.
-    """
     # SQLAlchemy 에서 "값이 비어 있다" 는 is None 이 아니라 is_(None) 으로 씁니다.
     return db.query(Chunk).filter(Chunk.embedding.is_(None)).all()
 
 
+# 새 청크를 저장합니다. 아직 벡터는 없습니다.
+def add_chunks(db, chunks):
+    db.add_all(chunks)
+    db.commit()
+
+
+# 청크에 벡터를 붙여 저장합니다.
 def save_embeddings(db, chunks, vectors):
-    """청크에 벡터를 붙여 저장합니다."""
     for chunk, vector in zip(chunks, vectors):
         chunk.embedding = json.dumps(vector)
     db.commit()
+
+
+# 메모리에 올려둔 벡터를 비웁니다.
+def clear_memory():
+    global _chunks, _vectors
+    _chunks = None
+    _vectors = None
 
 
 def count_all(db):
@@ -43,14 +49,13 @@ def count_embedded(db):
     return db.query(Chunk).filter(Chunk.embedding.is_not(None)).count()
 
 
+# 벡터가 어떻게 생겼는지 확인해 볼 때 씁니다.
 def find_first_embedded(db):
-    """벡터가 어떻게 생겼는지 확인해 볼 때 씁니다."""
     return db.query(Chunk).filter(Chunk.embedding.is_not(None)).first()
 
 
-
+# DB 의 벡터를 전부 읽어서 메모리에 올립니다. 처음 한 번만 실행됩니다.
 def load_into_memory(db):
-    """DB 의 벡터를 전부 읽어서 메모리에 올립니다. 처음 한 번만 실행됩니다."""
     global _chunks, _vectors
 
     rows = db.query(Chunk).filter(Chunk.embedding.is_not(None)).all()
@@ -71,9 +76,8 @@ def load_into_memory(db):
     _vectors = np.array([json.loads(row.embedding) for row in rows], dtype=np.float32)
 
 
-
+# 질문 벡터와 뜻이 가까운 청크를 top_k 개 찾아옵니다.
 def search(db, query_vector, top_k=10):
-    """질문 벡터와 뜻이 가까운 청크를 top_k 개 찾아옵니다."""
     if _vectors is None:
         load_into_memory(db)
 
