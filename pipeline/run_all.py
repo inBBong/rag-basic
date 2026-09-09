@@ -12,7 +12,7 @@
     python -m pipeline.embed
 """
 
-from pipeline import chunk, embed, load_data, split_reviews
+from pipeline import chunk, embed, load_data, split_review
 
 
 def run(step_name, step):
@@ -24,7 +24,7 @@ def run(step_name, step):
 
 
 def main():
-    run("1. 후기 분리", split_reviews)
+    run("1. 후기 분리", split_review)
     run("2. DB 적재", load_data)
     run("3. 청킹", chunk)
     run("4. 임베딩", embed)
