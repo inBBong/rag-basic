@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>화장품 AI 관리자</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header>
+      <h1>화장품 AI 관리자</h1>
+      <p>질문에 따라 DB 로 갈지 검색으로 갈지 AI 가 스스로 정합니다.</p>
+    </header>
+
+    <main>
+      <!-- 눌러보면 두 경로가 어떻게 갈리는지 바로 볼 수 있습니다 -->
+      <section class="examples">
+        <p class="label">눌러서 바로 해보기</p>
+        <div class="example-buttons">
+          <button class="example tool-example">구매액이 가장 높은 고객 5명</button>
+          <button class="example tool-example">제일 많이 팔린 상품 3개는?</button>
+          <button class="example tool-example">최근 등록된 신상품 알려줘</button>
+          <button class="example rag-example">비타민C 필링 로션 환불 되나요?</button>
+          <button class="example rag-example">트러블에 좋다는 후기 있어?</button>
+        </div>
+        <p class="hint">
+          <span class="dot tool"></span> DB 로 가는 질문 (숫자를 세는 질문) <span class="dot rag"></span> 검색으로 가는
+          질문 (글을 읽어야 하는 질문)
+        </p>
+      </section>
+
+      <section class="ask-box">
+        <input id="question" type="text" placeholder="궁금한 것을 물어보세요" autocomplete="off" />
+        <button id="ask-button">물어보기</button>
+      </section>
+
+      <section id="result" class="hidden">
+        <div class="path-box">
+          <span class="label">실행 경로</span>
+          <div id="path"></div>
+        </div>
+
+        <div class="answer-box">
+          <span class="label">답변</span>
+          <div id="answer"></div>
+        </div>
+
+        <div class="sources-box">
+          <span class="label" id="sources-label">근거</span>
+          <div id="sources"></div>
+        </div>
+      </section>
+
+      <p id="loading" class="hidden">단계가 끝날 때마다 위에 하나씩 나타납니다...</p>
+      <p id="error" class="hidden"></p>
+    </main>
+
+    <!-- 목록을 HTML 문자열로 그리기 때문에 escapeHtml 이 먼저 있어야 합니다 -->
+    <script src="escape.js"></script>
+    <script src="app.js"></script>
+    <script src="test.js"></script>
+  </body>
+</html>
