@@ -63,6 +63,25 @@ class ProductCreate(BaseModel):
     detail: str
 
 
+# 청크 한 조각의 정보입니다. 벡터 자체는 숫자 1536개라 보내지 않습니다.
+class ChunkInfoOut(BaseModel):
+    chunk_id: int
+    source: str  # "product" 또는 "review"
+    section: str | None
+    length: int
+    embedded: bool
+
+
+    
+# 상품 하나와, 그 상품이 몇 조각으로 잘렸는지입니다.
+class ProductDetailOut(BaseModel):
+    product: ProductOut
+    detail: str
+    chunks: list[ChunkInfoOut]
+    # DB 전체 청크 수. 이 상품 청크가 그중 몇 개인지 대비해서 보여주려고 함께 담습니다.
+    total_chunks: int   
+
+
     
 # 등록 결과입니다. 몇 개만 임베딩했는지 보여줍니다.
 class ProductCreatedOut(BaseModel):

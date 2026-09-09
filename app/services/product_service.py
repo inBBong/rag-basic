@@ -1,10 +1,7 @@
-"""
-상품 관련 업무 로직입니다.
+# 상품 관련 업무 로직입니다.
 
-지금은 Repository 를 그대로 부르기만 해서 얇아 보입니다.
-하지만 나중에 "상품을 저장하고, 상세를 자르고, 임베딩해서 벡터로 저장한다" 처럼
-여러 단계를 묶는 자리가 바로 여기입니다.
-"""
+from datetime import datetime
+
 from app.ai import vector_store
 from app.ai.chunker import make_product_chunks
 from app.ai.embedder import embed_texts
@@ -49,9 +46,6 @@ def get_product_summaries(db, category, limit=10):
 
 
 # 최근 등록된 신상품을 AI 에게 보낼 만큼만 추려서 돌려줍니다.
-#   created_at 은 그대로 두면 datetime 객체라서 프롬프트에 지저분하게 붙습니다.
-#   (prompts.build_tool_prompt 가 str(row) 로 그대로 이어 붙이기 때문입니다.)
-#   그래서 "2026-09-08" 같은 문자열로 바꿔서 넘깁니다.
 def get_new_products(db, limit=5, days=None):
     products = product_repository.find_recent(db, limit, days)
     return [
@@ -67,18 +61,7 @@ def get_new_products(db, limit=5, days=None):
     ]
 
 
-# 최근 등록된 상품 중 가장 비싼 것을 "추천"할 수 있게 재료를 모아 줍니다.
-#
-#   Repository 함수 하나로는 "제일 비싼 신상품은 이겁니다" 밖에 답하지 못합니다.
-#   추천이 되려면 근거가 더 필요해서, 여기서 조회를 세 번 묶습니다.
-#     1) find_recent_expensive     : 신상품을 비싼 순으로  -> 추천 후보
-#     2) get_category_price_stats  : 같은 카테고리 가격대  -> 얼마나 비싼지 근거
-#     3) find_cheaper_in_category  : 같은 카테고리 저가품  -> 부담될 때의 대안
-#
-#   돌려주는 형식이 "딕셔너리 목록" 인 것이 중요합니다.
-#   graph.nodes.run_tools 가 rows += 결과 로 이어 붙이고,
-#   masking.mask_rows 가 row.items() 를 돌기 때문입니다.
-#   그래서 성격이 다른 줄을 섞어 담되, "구분" 키로 무슨 줄인지 AI 에게 알려줍니다.
+# 신상품 중 제일 비싼 것을 "추천" 할 수 있게 재료를 모아 줍니다.
 def get_expensive_new_products(db, limit=3, days=None):
     products = product_repository.find_recent_expensive(db, limit, days)
 
@@ -101,7 +84,6 @@ def get_expensive_new_products(db, limit=3, days=None):
             "skin_type": product.skin_type,
             "created_at": product.created_at.strftime("%Y-%m-%d"),
         }
-        # enumerate(..., start=1) 로 1위, 2위 순위를 같이 붙여 줍니다.
         for rank, product in enumerate(products, start=1)
     ]
 
@@ -122,8 +104,8 @@ def get_expensive_new_products(db, limit=3, days=None):
         }
     )
 
-    # 상품 소개글입니다. 숫자만 있으면 추천 문장이 건조해서 한 줄 같이 넘깁니다.
-    # detail(평균 1370자)은 너무 길어서 프롬프트에 붙이지 않고 짧은 description 만 씁니다.
+    # 숫자만 있으면 추천 문장이 건조해서 소개글을 한 줄 같이 넘깁니다.
+    # detail(평균 1370자)은 너무 길어서 붙이지 않고 짧은 description 만 씁니다.
     rows.append(
         {
             "구분": "추천 상품 소개글",
@@ -149,25 +131,43 @@ def get_expensive_new_products(db, limit=3, days=None):
     return rows
 
 
+# 상품 하나와, 그 상품이 몇 조각으로 잘렸는지를 같이 돌려줍니다.
+def get_product_detail(db, product_id):
+    product = product_repository.find_by_id(db, product_id)
+    if not product:
+        return None
+
+    return {
+        "product": product,
+        "detail": product.detail,
+        "chunks": vector_store.find_chunks_by_product(db, product_id),
+        "total_chunks": vector_store.count_all(db),
+    }
+
+
 # 상품을 등록하고, 그 상품만 임베딩합니다.
 def create_product(db, data):
     if product_repository.find_by_id(db, data.product_id):
         return None
-    # ProductCreate 의 항목 이름이 Product 와 같아서 그대로 풀어 넘깁니다.
-    product = product_repository.save(db, Product(**data.model_dump()))
-    chunks = make_product_chunks(product)
 
+    # ProductCreate 의 항목 이름이 Product 와 같아서 그대로 풀어 넘깁니다.
+    # 등록 시각은 여기서 찍습니다. 모델에 기본값으로 두면 CSV 적재에도 걸립니다.
+    product = product_repository.save(
+        db, Product(**data.model_dump(), created_at=datetime.now())
+    )
+
+    chunks = make_product_chunks(product)
     vector_store.add_chunks(db, chunks)
 
     vectors = embed_texts([chunk.content for chunk in chunks])
-
     vector_store.save_embeddings(db, chunks, vectors)
+
     # 메모리에 올려둔 벡터가 옛것이 되었으니 비웁니다. 다음 검색 때 다시 읽어옵니다.
     vector_store.clear_memory()
 
     total = vector_store.count_all(db)
     print(f"[증분 임베딩] 전체 청크 {total}개 중 새로 만든 {len(chunks)}개만 임베딩했습니다.")
-    
+
     return {
         "product_id": product.product_id,
         "name": product.name,

@@ -19,6 +19,10 @@ def find_by_skin_type(db, skin_type, limit=20):
     return db.query(Customer).filter(Customer.skin_type == skin_type).limit(limit).all()
 
 
+def find_by_id(db, customer_id):
+    return db.query(Customer).filter(Customer.customer_id == customer_id).first()
+
+
 # 구매 금액이 큰 고객을 순서대로 찾습니다.
 def find_top_spenders(db, limit=5):
     total_spend = func.sum(Product.price * Purchase.quantity).label("total_spend")
